@@ -4,6 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	_ "github.com/lib/pq"
+
+	"github.com/cyverse-de/event-recorder/db"
+	"github.com/cyverse-de/event-recorder/handlers"
+	"github.com/cyverse-de/event-recorder/handlerset"
+
 	"github.com/DavidGamba/go-getoptions"
 	"github.com/cyverse-de/configurate"
 	"github.com/cyverse-de/logcabin"
@@ -15,6 +21,8 @@ type commandLineOptionValues struct {
 	Config string
 }
 
+// parseCommandLine parses the command line and returns an options structure containing command-line options and
+// parameters.
 func parseCommandLine() *commandLineOptionValues {
 	optionValues := &commandLineOptionValues{}
 	opt := getoptions.New()
@@ -56,11 +64,28 @@ func main() {
 	}
 
 	// Retrieve the AMQP settings.
-	amqpURI := cfg.GetString("amqp.uri")
-	amqpExchangeName := cfg.GetString("amqp.exchange.name")
-	amqpExchangeType := cfg.GetString("amqp.exchange.type")
+	amqpSettings := &handlerset.AMQPSettings{
+		URI:          cfg.GetString("amqp.uri"),
+		ExchangeName: cfg.GetString("amqp.exchange.name"),
+		ExchangeType: cfg.GetString("amqp.exchange.type"),
+	}
+	fmt.Println("AMQP Settings: %V\n", amqpSettings)
 
-	fmt.Printf("%s\n", amqpURI)
-	fmt.Printf("%s\n", amqpExchangeName)
-	fmt.Printf("%s\n", amqpExchangeType)
+	// Initialize the database connection.
+	databaseURI := cfg.GetString("notifications.db.uri")
+	db, err := db.InitDatabase("postgres", databaseURI)
+	if err != nil {
+		logcabin.Error.Fatal(err)
+	}
+	defer db.Close()
+
+	// Create the message handler set.
+	handlerSet, err := handlerset.New(amqpSettings, handlers.InitMessageHandlers(db))
+	if err != nil {
+		logcabin.Error.Fatal(err)
+	}
+	defer handlerSet.Close()
+
+	// DEBUGGING_CODE
+	logcabin.Error.Print("We can haz DB and AMQP! Where's my hasenpfeffer?")
 }
