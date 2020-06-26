@@ -86,6 +86,13 @@ func main() {
 	}
 	defer handlerSet.Close()
 
-	// DEBUGGING_CODE
-	logcabin.Error.Print("We can haz DB and AMQP! Where's my hasenpfeffer?")
+	// Listen for incoming messages.
+	err = handlerSet.Listen()
+	if err != nil {
+		logcabin.Error.Fatal(err)
+	}
+
+	// Spin until someone kills the process.
+	spinner := make(chan int)
+	<-spinner
 }
