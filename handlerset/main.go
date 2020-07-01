@@ -2,6 +2,7 @@ package handlerset
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cyverse-de/event-recorder/handlers"
 	"github.com/cyverse-de/logcabin"
@@ -46,14 +47,80 @@ func New(amqpSettings *AMQPSettings, handlerFor map[string]handlers.MessageHandl
 	return &handlerSet, nil
 }
 
-// handleMessage handles an incoming AMQP message.
-func (hs *HandlerSet) handle(delivery amqp.Delivery) {
-	// For now, we're just giong to exclaim that we got the message then acknowledge it.
-	fmt.Println("We can haz messagez!!!!")
+// parseRoutingKey extracts the event category and update type from the delivery tag.
+func (hs *HandlerSet) parseRoutingKey(tag string) (string, string, error) {
+	components := strings.Split(tag, ".")
+	if len(components) < 4 {
+		return "", "", fmt.Errorf("routing key %s has too few components", tag)
+	}
+	return components[1], components[3], nil
+}
+
+// ack acknowledges a delivery and logs an error if the acknowledgement fails.
+func (hs *HandlerSet) ack(delivery amqp.Delivery) {
 	err := delivery.Ack(false)
 	if err != nil {
 		logcabin.Error.Printf("unable to acknowledge delivery: %s", err.Error())
 	}
+}
+
+// nack negatively acknowledges a delivery and logs an error if the acknowledgement fails.
+func (hs *HandlerSet) nack(delivery amqp.Delivery, requeue bool) {
+	err := delivery.Nack(false, requeue)
+	if err != nil {
+		logcabin.Error.Printf("unable to negatively acknowledge delivery: %s", err.Error())
+	}
+}
+
+// sendUnrecoverableErrorEmail sends an email to a configurable email address indicating that
+// a message delivery couldn't be processed.
+//
+// TODO: IMPLEMENT ME
+func (hs *HandlerSet) sendUnrecoverableErrorEmail(delivery amqp.Delivery, err handlers.UnrecoverableError) {
+	// Just log the error for now.
+	logcabin.Error.Printf("something bad happened: %s", err.Error())
+}
+
+// handleMessage handles an incoming AMQP message.
+func (hs *HandlerSet) handleMessage(delivery amqp.Delivery) {
+	category, updateType, err := hs.parseRoutingKey(delivery.RoutingKey)
+	if err != nil {
+		logcabin.Error.Printf("unable to handle message: %s", err.Error())
+		hs.nack(delivery, false)
+		return
+	}
+
+	// Look up the handler for the category.
+	handler := hs.handlerFor[category]
+	if handler == nil {
+		logcabin.Info.Printf("no handler for category '%s'; ignoring delivery", category)
+		hs.ack(delivery)
+		return
+	}
+
+	// Dispatch the delivery to the handler.
+	err = handler.HandleMessage(updateType, delivery)
+	if err != nil {
+		switch val := err.(type) {
+		case handlers.UnrecoverableError:
+			hs.sendUnrecoverableErrorEmail(delivery, val)
+			logcabin.Error.Printf("discarding message because of an unrecoverable error: %s", val.Error())
+			hs.nack(delivery, false)
+		case handlers.RecoverableError:
+			logcabin.Error.Printf("requeuing message becuse of a recoverable error: %s", val.Error())
+			hs.nack(delivery, true)
+		case error:
+			logcabin.Error.Printf(
+				"requeuing message because of an error that is presumed to be recoverable: %s",
+				val.Error(),
+			)
+			hs.nack(delivery, true)
+		}
+		return
+	}
+
+	// If we get here then the delivery was processed successfully.
+	hs.ack(delivery)
 }
 
 // Listen waits for incoming AMQP messages and dispatches any messages that it recieves to a handler.
@@ -75,7 +142,7 @@ func (hs *HandlerSet) Listen() error {
 		hs.amqpSettings.ExchangeType,
 		queueName,
 		queueKey,
-		hs.handle,
+		hs.handleMessage,
 		100,
 	)
 

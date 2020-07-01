@@ -1,10 +1,14 @@
 package handlers
 
-import "database/sql"
+import (
+	"database/sql"
+
+	"github.com/streadway/amqp"
+)
 
 // MessageHandler describes the interface used to handle AMQP messages.
 type MessageHandler interface {
-	HandleMessage(messageBody map[string]interface{}) error
+	HandleMessage(updateType string, delivery amqp.Delivery) error
 }
 
 // InitMessageHandlers returns a map from category name to message handler.
