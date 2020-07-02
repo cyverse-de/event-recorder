@@ -1,6 +1,7 @@
 package handlerset
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -27,6 +28,22 @@ type HandlerSet struct {
 	amqpSettings *AMQPSettings
 	supportEmail string
 	handlerFor   map[string]handlers.MessageHandler
+}
+
+// EmailRequestPublishingKey is the AMQP routing key for email requests. This is a good candidate for the
+// messaging library.
+const EmailRequestPublishingKey = "email.requests"
+
+// EmailRequest defines the structure of a request to be sent to iplant-email. This is a good candiate for the
+// messaging library.
+type EmailRequest struct {
+	TemplateName        string            `json:"template"`
+	TemplateValues      map[string]string `json:"values"`
+	Subject             string            `json:"subject"`
+	ToAddress           string            `json:"to"`
+	CourtesyCopyAddress string            `json:"cc,omitempty"`
+	FromAddress         string            `json:"from-addr,omitempty"`
+	FromName            string            `json:"from-name,omitempty"`
 }
 
 // New creates a new handler set.
@@ -80,11 +97,34 @@ func (hs *HandlerSet) nack(delivery amqp.Delivery, requeue bool) {
 
 // sendUnrecoverableErrorEmail sends an email to a configurable email address indicating that
 // a message delivery couldn't be processed.
-//
-// TODO: IMPLEMENT ME
-func (hs *HandlerSet) sendUnrecoverableErrorEmail(delivery amqp.Delivery, err handlers.UnrecoverableError) {
-	// Just log the error for now.
-	logcabin.Error.Printf("something bad happened: %s", err.Error())
+func (hs *HandlerSet) sendUnrecoverableErrorEmail(delivery amqp.Delivery, cause handlers.UnrecoverableError) {
+	wrapMsg := "unable to send unrecoverable error notification email request"
+
+	// Build the email request.
+	request := EmailRequest{
+		Subject:      "Unrecoverable Error in the Event Recorder service",
+		ToAddress:    hs.supportEmail,
+		TemplateName: "notifications_event_discarded",
+		TemplateValues: map[string]string{
+			"error":        cause.Error(),
+			"routing_key":  delivery.RoutingKey,
+			"message_body": string(delivery.Body),
+		},
+	}
+
+	// Marshal the request.
+	body, err := json.Marshal(request)
+	if err != nil {
+		logcabin.Error.Printf("%s: %s", wrapMsg, err.Error())
+		return
+	}
+
+	// Publish the request.
+	err = hs.amqpClient.Publish(EmailRequestPublishingKey, body)
+	if err != nil {
+		logcabin.Error.Printf("%s: %s", wrapMsg, err.Error())
+		return
+	}
 }
 
 // logDelivery logs some information about a message delivery for troubleshooting purposes.
