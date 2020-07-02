@@ -69,7 +69,6 @@ func main() {
 		ExchangeName: cfg.GetString("amqp.exchange.name"),
 		ExchangeType: cfg.GetString("amqp.exchange.type"),
 	}
-	fmt.Println("AMQP Settings: %V\n", amqpSettings)
 
 	// Initialize the database connection.
 	databaseURI := cfg.GetString("notifications.db.uri")
@@ -79,8 +78,11 @@ func main() {
 	}
 	defer db.Close()
 
+	// Get the email address to use for support requests.
+	supportEmail := cfg.GetString("email.request")
+
 	// Create the message handler set.
-	handlerSet, err := handlerset.New(amqpSettings, handlers.InitMessageHandlers(db))
+	handlerSet, err := handlerset.New(amqpSettings, supportEmail, handlers.InitMessageHandlers(db))
 	if err != nil {
 		logcabin.Error.Fatal(err)
 	}

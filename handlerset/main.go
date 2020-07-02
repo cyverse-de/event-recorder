@@ -25,11 +25,16 @@ type AMQPSettings struct {
 type HandlerSet struct {
 	amqpClient   *messaging.Client
 	amqpSettings *AMQPSettings
+	supportEmail string
 	handlerFor   map[string]handlers.MessageHandler
 }
 
 // New creates a new handler set.
-func New(amqpSettings *AMQPSettings, handlerFor map[string]handlers.MessageHandler) (*HandlerSet, error) {
+func New(
+	amqpSettings *AMQPSettings,
+	supportEmail string,
+	handlerFor map[string]handlers.MessageHandler,
+) (*HandlerSet, error) {
 	wrapMsg := "unable to create the message handler set"
 
 	// Create the AMQP client.
@@ -42,6 +47,7 @@ func New(amqpSettings *AMQPSettings, handlerFor map[string]handlers.MessageHandl
 	handlerSet := HandlerSet{
 		amqpClient:   amqpClient,
 		amqpSettings: amqpSettings,
+		supportEmail: supportEmail,
 		handlerFor:   handlerFor,
 	}
 	return &handlerSet, nil
@@ -81,6 +87,11 @@ func (hs *HandlerSet) sendUnrecoverableErrorEmail(delivery amqp.Delivery, err ha
 	logcabin.Error.Printf("something bad happened: %s", err.Error())
 }
 
+// logDelivery logs some information about a message delivery for troubleshooting purposes.
+func (hs *HandlerSet) logDelivery(description string, delivery amqp.Delivery) {
+	logcabin.Info.Printf("%s: %s; %s", description, delivery.RoutingKey, delivery.Body)
+}
+
 // handleMessage handles an incoming AMQP message.
 func (hs *HandlerSet) handleMessage(delivery amqp.Delivery) {
 	category, updateType, err := hs.parseRoutingKey(delivery.RoutingKey)
@@ -104,16 +115,18 @@ func (hs *HandlerSet) handleMessage(delivery amqp.Delivery) {
 		switch val := err.(type) {
 		case handlers.UnrecoverableError:
 			hs.sendUnrecoverableErrorEmail(delivery, val)
-			logcabin.Error.Printf("discarding message because of an unrecoverable error: %s", val.Error())
+			hs.logDelivery("discarded delivery", delivery)
 			hs.nack(delivery, false)
 		case handlers.RecoverableError:
 			logcabin.Error.Printf("requeuing message becuse of a recoverable error: %s", val.Error())
+			hs.logDelivery("requeued delivery", delivery)
 			hs.nack(delivery, true)
 		case error:
 			logcabin.Error.Printf(
 				"requeuing message because of an error that is presumed to be recoverable: %s",
 				val.Error(),
 			)
+			hs.logDelivery("requeued delivery", delivery)
 			hs.nack(delivery, true)
 		}
 		return
