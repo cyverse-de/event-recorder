@@ -15,3 +15,5 @@ require (
 	github.com/streadway/amqp v1.0.0
 	gopkg.in/cyverse-de/model.v4 v4.0.0-20191010001558-736b5a572acd // indirect
 )
+
+replace github.com/cyverse-de/messaging => /Users/sarahr/src/de/go/src/github.com/cyverse-de/messaging

@@ -1,7 +1,6 @@
 package handlerset
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -28,22 +27,6 @@ type HandlerSet struct {
 	amqpSettings *AMQPSettings
 	supportEmail string
 	handlerFor   map[string]handlers.MessageHandler
-}
-
-// EmailRequestPublishingKey is the AMQP routing key for email requests. This is a good candidate for the
-// messaging library.
-const EmailRequestPublishingKey = "email.requests"
-
-// EmailRequest defines the structure of a request to be sent to iplant-email. This is a good candiate for the
-// messaging library.
-type EmailRequest struct {
-	TemplateName        string            `json:"template"`
-	TemplateValues      map[string]string `json:"values"`
-	Subject             string            `json:"subject"`
-	ToAddress           string            `json:"to"`
-	CourtesyCopyAddress string            `json:"cc,omitempty"`
-	FromAddress         string            `json:"from-addr,omitempty"`
-	FromName            string            `json:"from-name,omitempty"`
 }
 
 // New creates a new handler set.
@@ -101,7 +84,7 @@ func (hs *HandlerSet) sendUnrecoverableErrorEmail(delivery amqp.Delivery, cause 
 	wrapMsg := "unable to send unrecoverable error notification email request"
 
 	// Build the email request.
-	request := EmailRequest{
+	request := messaging.EmailRequest{
 		Subject:      "Unrecoverable Error in the Event Recorder service",
 		ToAddress:    hs.supportEmail,
 		TemplateName: "notifications_event_discarded",
@@ -112,18 +95,10 @@ func (hs *HandlerSet) sendUnrecoverableErrorEmail(delivery amqp.Delivery, cause 
 		},
 	}
 
-	// Marshal the request.
-	body, err := json.Marshal(request)
-	if err != nil {
-		logcabin.Error.Printf("%s: %s", wrapMsg, err.Error())
-		return
-	}
-
 	// Publish the request.
-	err = hs.amqpClient.Publish(EmailRequestPublishingKey, body)
+	err := hs.amqpClient.PublishEmailRequest(&request)
 	if err != nil {
 		logcabin.Error.Printf("%s: %s", wrapMsg, err.Error())
-		return
 	}
 }
 
