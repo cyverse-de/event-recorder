@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/db"
 
-	"github.com/cyverse-de/event-recorder/model"
+	"github.com/cyverse-de/messaging"
 
 	"github.com/streadway/amqp"
 )
@@ -26,12 +27,55 @@ type LegacyRequest struct {
 
 // Legacy is a message handler for events published by the backwards compatible HTTP API.
 type Legacy struct {
-	db *sql.DB
+	db              *sql.DB
+	messagingClient *messaging.Client
 }
 
 // NewLegacy returns a new legacy event handler.
-func NewLegacy(db *sql.DB) *Legacy {
-	return &Legacy{db: db}
+func NewLegacy(db *sql.DB, messagingClient *messaging.Client) *Legacy {
+	return &Legacy{
+		db:              db,
+		messagingClient: messagingClient,
+	}
+}
+
+// sendEmailRequest sends the email request for a single notification request.
+func (lh *Legacy) sendEmailRequest(request *LegacyRequest) error {
+	wrapMsg := "unable to send the email request"
+
+	// Extract the email address from the notification request payload.
+	var emailAddress string
+	switch str := request.Payload["email_address"].(type) {
+	case string:
+		emailAddress = str
+	default:
+		return NewUnrecoverableError("%s: %s", wrapMsg, "no email address provided or invalid data type in request")
+	}
+
+	// Validate the email address.
+	err := common.ValidateEmailAddress(emailAddress)
+	if err != nil {
+		return NewUnrecoverableError("%s: %s", wrapMsg, err.Error())
+	}
+
+	// Validate the template name.
+	if request.EmailTemplate == "" {
+		return NewUnrecoverableError("%s: %s", wrapMsg, "no email template provided")
+	}
+
+	// Create the email request body.
+	emailRequest := &messaging.EmailRequest{
+		Subject:        request.Subject,
+		ToAddress:      emailAddress,
+		TemplateName:   request.EmailTemplate,
+		TemplateValues: request.Payload,
+	}
+	err = lh.messagingClient.PublishEmailRequest(emailRequest)
+	if err != nil {
+		return NewRecoverableError("%s: %s", wrapMsg, err.Error())
+	}
+
+	return nil
 }
 
 // HandleMessage handles a single AMQP delivery.
@@ -58,7 +102,7 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 	defer tx.Rollback()
 
 	// Store the message in the database.
-	storableRequest := &model.Notification{
+	storableRequest := &common.Notification{
 		NotificationType: updateType,
 		User:             request.User,
 		Subject:          request.Subject,
@@ -70,6 +114,14 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 	err = db.SaveNotification(tx, storableRequest)
 	if err != nil {
 		return NewUnrecoverableError(err.Error())
+	}
+
+	// Send the email request.
+	if request.Email {
+		err = lh.sendEmailRequest(&request)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Commit the transaction.

@@ -3,15 +3,14 @@ package db
 import (
 	"database/sql"
 
-	"github.com/cyverse-de/event-recorder/model"
-	"github.com/cyverse-de/logcabin"
+	"github.com/cyverse-de/event-recorder/common"
 	"github.com/pkg/errors"
 
 	sq "github.com/Masterminds/squirrel"
 )
 
 // SaveNotification sabves a single notification into the database.
-func SaveNotification(tx *sql.Tx, notification *model.Notification) error {
+func SaveNotification(tx *sql.Tx, notification *common.Notification) error {
 	wrapMsg := "unable to save notification"
 
 	// Get the notification type ID.
@@ -41,8 +40,6 @@ func SaveNotification(tx *sql.Tx, notification *model.Notification) error {
 			notification.Message).
 		Suffix("RETURNING id").
 		ToSql()
-	logcabin.Error.Println(statement)
-	logcabin.Error.Println(args)
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
 	}

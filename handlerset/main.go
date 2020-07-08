@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/handlers"
 	"github.com/cyverse-de/logcabin"
 	"github.com/cyverse-de/messaging"
@@ -14,24 +15,17 @@ import (
 const queueName = "event_listener"
 const queueKey = "events.*.update.*"
 
-// AMQPSettings represents the settings that we require in order to connect to the AMQP exchange.
-type AMQPSettings struct {
-	URI          string
-	ExchangeName string
-	ExchangeType string
-}
-
 // HandlerSet represents a set of AMQP message handlers.
 type HandlerSet struct {
 	amqpClient   *messaging.Client
-	amqpSettings *AMQPSettings
+	amqpSettings *common.AMQPSettings
 	supportEmail string
 	handlerFor   map[string]handlers.MessageHandler
 }
 
 // New creates a new handler set.
 func New(
-	amqpSettings *AMQPSettings,
+	amqpSettings *common.AMQPSettings,
 	supportEmail string,
 	handlerFor map[string]handlers.MessageHandler,
 ) (*HandlerSet, error) {
@@ -88,7 +82,7 @@ func (hs *HandlerSet) sendUnrecoverableErrorEmail(delivery amqp.Delivery, cause 
 		Subject:      "Unrecoverable Error in the Event Recorder service",
 		ToAddress:    hs.supportEmail,
 		TemplateName: "notifications_event_discarded",
-		TemplateValues: map[string]string{
+		TemplateValues: map[string]interface{}{
 			"error":        cause.Error(),
 			"routing_key":  delivery.RoutingKey,
 			"message_body": string(delivery.Body),

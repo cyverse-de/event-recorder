@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/lib/pq"
 
+	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/db"
 	"github.com/cyverse-de/event-recorder/handlers"
 	"github.com/cyverse-de/event-recorder/handlerset"
@@ -64,7 +65,7 @@ func main() {
 	}
 
 	// Retrieve the AMQP settings.
-	amqpSettings := &handlerset.AMQPSettings{
+	amqpSettings := &common.AMQPSettings{
 		URI:          cfg.GetString("amqp.uri"),
 		ExchangeName: cfg.GetString("amqp.exchange.name"),
 		ExchangeType: cfg.GetString("amqp.exchange.type"),
@@ -81,8 +82,14 @@ func main() {
 	// Get the email address to use for support requests.
 	supportEmail := cfg.GetString("email.request")
 
+	// Initialize the message handlers.
+	messageHandlers, err := handlers.InitMessageHandlers(db, amqpSettings)
+	if err != nil {
+		logcabin.Error.Fatal(err)
+	}
+
 	// Create the message handler set.
-	handlerSet, err := handlerset.New(amqpSettings, supportEmail, handlers.InitMessageHandlers(db))
+	handlerSet, err := handlerset.New(amqpSettings, supportEmail, messageHandlers)
 	if err != nil {
 		logcabin.Error.Fatal(err)
 	}
