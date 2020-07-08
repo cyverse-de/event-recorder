@@ -12,8 +12,8 @@ type MessageHandler interface {
 }
 
 // InitMessageHandlers returns a map from category name to message handler.
-func InitMessageHandlers(_ *sql.DB) map[string]MessageHandler {
+func InitMessageHandlers(db *sql.DB) map[string]MessageHandler {
 	return map[string]MessageHandler{
-		"notification": NewLegacy(),
+		"notification": NewLegacy(db),
 	}
 }

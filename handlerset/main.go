@@ -129,6 +129,7 @@ func (hs *HandlerSet) handleMessage(delivery amqp.Delivery) {
 	if err != nil {
 		switch val := err.(type) {
 		case handlers.UnrecoverableError:
+			logcabin.Error.Printf("discarding message because of an unrecoverable error: %s", val.Error())
 			hs.sendUnrecoverableErrorEmail(delivery, val)
 			hs.logDelivery("discarded delivery", delivery)
 			hs.nack(delivery, false)
