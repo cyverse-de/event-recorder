@@ -3,7 +3,13 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
+
+	"github.com/fatih/structs"
+
+	"github.com/pkg/errors"
 
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/db"
@@ -78,6 +84,86 @@ func (lh *Legacy) sendEmailRequest(request *LegacyRequest) error {
 	return nil
 }
 
+// fixTimestamp fixes a timestamp stored as a string in a map.
+func fixTimestamp(m map[string]interface{}, k string) error {
+	wrapMsg := fmt.Sprintf("unable to fix the timestamp in key '%s'", k)
+
+	// Extract the current value.
+	v, present := m[k]
+	if !present {
+		return nil
+	}
+
+	// Convert the value to a string. We only have to check types used by the json package.
+	var stringValue string
+	switch val := v.(type) {
+	case string:
+		stringValue = val
+	case float64:
+		stringValue = fmt.Sprintf("%d", int64(val))
+	default:
+		return fmt.Errorf("%s: %s", wrapMsg, "invalid data type")
+	}
+
+	// Convert the timestamp to milliseconds since the epoch.
+	convertedValue, err := common.FixTimestamp(stringValue)
+	if err != nil {
+		return errors.Wrap(err, wrapMsg)
+	}
+
+	// Directly update the value in the map.
+	m[k] = convertedValue
+
+	return nil
+}
+
+// sendNotificationMessage sends the notification message to the Discovery
+// Environment UI. This function changes the request payload, so it should
+// be called last.
+func (lh *Legacy) sendNotificationMessage(request *common.Notification, payload *LegacyRequest) error {
+	wrapMsg := "unable to send notification message"
+
+	// The message portion of the request sent to the UI is a JSON object.
+	outgoingMessage := map[string]interface{}{
+		"id":        request.ID,
+		"timestamp": common.FormatTimestamp(&request.TimeCreated),
+		"text":      payload.Message,
+	}
+
+	// Ensure that the analysis start date is in the correct format if it's present.
+	err := fixTimestamp(payload.Payload, "startdate")
+	if err != nil {
+		return errors.Wrap(err, wrapMsg)
+	}
+
+	// Ensure that the analysis end date is in the correct format if it's present.
+	err = fixTimestamp(payload.Payload, "enddate")
+	if err != nil {
+		return errors.Wrap(err, wrapMsg)
+	}
+
+	// Replace underscores with spaces in the notification type.
+	payload.RequestType = strings.ReplaceAll(payload.RequestType, "_", " ")
+
+	// Build the notification message.
+	notificationMessage := &messaging.NotificationMessage{
+		Deleted:       request.Deleted,
+		Email:         payload.Email,
+		EmailTemplate: payload.EmailTemplate,
+		Message:       outgoingMessage,
+		Payload:       structs.Map(payload),
+		Seen:          request.Seen,
+		Subject:       request.Subject,
+		Type:          request.NotificationType,
+		User:          request.User,
+	}
+
+	// Publish the notification message.
+	lh.messagingClient.PublishNotificationMessage(notificationMessage)
+
+	return nil
+}
+
 // HandleMessage handles a single AMQP delivery.
 func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error {
 
@@ -122,6 +208,12 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 		if err != nil {
 			return err
 		}
+	}
+
+	// Send the notification message to the UI.
+	err = lh.sendNotificationMessage(storableRequest, &request)
+	if err != nil {
+		return err
 	}
 
 	// Commit the transaction.

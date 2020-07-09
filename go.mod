@@ -10,6 +10,7 @@ require (
 	github.com/cyverse-de/logcabin v0.0.0-20200527185931-2ccd850e39ad
 	github.com/cyverse-de/messaging v6.0.0+incompatible
 	github.com/cyverse-de/model v0.0.0-20200527190032-dc1e3a7c2ccd // indirect
+	github.com/fatih/structs v1.1.0
 	github.com/lib/pq v1.7.0
 	github.com/mcnijman/go-emailaddress v1.1.0
 	github.com/pkg/errors v0.8.1
