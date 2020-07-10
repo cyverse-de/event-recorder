@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/cyverse-de/event-recorder/common"
-	"github.com/cyverse-de/event-recorder/db"
 	"github.com/cyverse-de/messaging"
 	"github.com/fatih/structs"
 	"github.com/pkg/errors"
@@ -29,14 +27,14 @@ type LegacyRequest struct {
 
 // Legacy is a message handler for events published by the backwards compatible HTTP API.
 type Legacy struct {
-	db              *sql.DB
-	messagingClient *messaging.Client
+	dbc             DatabaseClient
+	messagingClient MessagingClient
 }
 
 // NewLegacy returns a new legacy event handler.
-func NewLegacy(db *sql.DB, messagingClient *messaging.Client) *Legacy {
+func NewLegacy(dbc DatabaseClient, messagingClient MessagingClient) *Legacy {
 	return &Legacy{
-		db:              db,
+		dbc:             dbc,
 		messagingClient: messagingClient,
 	}
 }
@@ -177,11 +175,11 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 	}
 
 	// Begin a database transaction.
-	tx, err := lh.db.Begin()
+	tx, err := lh.dbc.Begin()
 	if err != nil {
 		return NewRecoverableError("uanble to begin a database transaction: %s", err.Error())
 	}
-	defer tx.Rollback()
+	defer lh.dbc.Rollback(tx)
 
 	// Store the message in the database.
 	storableRequest := &common.Notification{
@@ -193,7 +191,7 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 		TimeCreated:      timeCreated,
 		Message:          string(delivery.Body),
 	}
-	err = db.SaveNotification(tx, storableRequest)
+	err = lh.dbc.SaveNotification(tx, storableRequest)
 	if err != nil {
 		return NewUnrecoverableError(err.Error())
 	}
@@ -213,7 +211,7 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 	}
 
 	// Commit the transaction.
-	err = tx.Commit()
+	err = lh.dbc.Commit(tx)
 	if err != nil {
 		return NewRecoverableError("unable to commit the database transaction: %s", err.Error())
 	}
