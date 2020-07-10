@@ -10,7 +10,7 @@ import (
 
 // FormatTimestamp converts an instance of time.Time to a string representation
 // of the number of milliseconds since the epoch.
-func FormatTimestamp(timestamp *time.Time) string {
+func FormatTimestamp(timestamp time.Time) string {
 	return fmt.Sprintf("%d", int(timestamp.UnixNano()/1000000))
 }
 
@@ -37,5 +37,5 @@ func FixTimestamp(original string) (string, error) {
 	}
 
 	// Return the timestamp as nanoseconds since the epoch.
-	return FormatTimestamp(&timestamp), nil
+	return FormatTimestamp(timestamp), nil
 }

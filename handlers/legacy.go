@@ -7,15 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatih/structs"
-
-	"github.com/pkg/errors"
-
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/db"
-
 	"github.com/cyverse-de/messaging"
-
+	"github.com/fatih/structs"
+	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
 
@@ -126,7 +122,7 @@ func (lh *Legacy) sendNotificationMessage(request *common.Notification, payload 
 	// The message portion of the request sent to the UI is a JSON object.
 	outgoingMessage := map[string]interface{}{
 		"id":        request.ID,
-		"timestamp": common.FormatTimestamp(&request.TimeCreated),
+		"timestamp": common.FormatTimestamp(request.TimeCreated),
 		"text":      payload.Message,
 	}
 

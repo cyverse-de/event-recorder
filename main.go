@@ -6,13 +6,12 @@ import (
 
 	_ "github.com/lib/pq"
 
+	"github.com/DavidGamba/go-getoptions"
+	"github.com/cyverse-de/configurate"
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/db"
 	"github.com/cyverse-de/event-recorder/handlers"
 	"github.com/cyverse-de/event-recorder/handlerset"
-
-	"github.com/DavidGamba/go-getoptions"
-	"github.com/cyverse-de/configurate"
 	"github.com/cyverse-de/logcabin"
 )
 

@@ -3,11 +3,9 @@ package handlers
 import (
 	"database/sql"
 
-	"github.com/pkg/errors"
-
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/messaging"
-
+	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
 
