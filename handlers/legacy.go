@@ -8,7 +8,6 @@ import (
 
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/messaging"
-	"github.com/fatih/structs"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
@@ -145,7 +144,7 @@ func (lh *Legacy) sendNotificationMessage(request *common.Notification, payload 
 		Email:         payload.Email,
 		EmailTemplate: payload.EmailTemplate,
 		Message:       outgoingMessage,
-		Payload:       structs.Map(payload),
+		Payload:       payload,
 		Seen:          request.Seen,
 		Subject:       request.Subject,
 		Type:          request.NotificationType,
