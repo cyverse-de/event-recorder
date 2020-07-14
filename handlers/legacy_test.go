@@ -186,4 +186,68 @@ func TestNotification(t *testing.T) {
 	if !timestampFormatCorrect(notification.Message["timestamp"].(string)) {
 		t.Errorf("incorrect timestamp format: %s", notification.Message["timestamp"].(string))
 	}
+
+	// Spot-check some fields in the payload.
+	payload, ok := notification.Payload.(*LegacyRequest)
+	if !ok {
+		t.Fatal("payload doesn't appear to be a LegacyRequest")
+	}
+	if !timestampFormatCorrect(payload.Payload["startdate"].(string)) {
+		t.Errorf("incorrect timestamp format: %s", payload.Payload["startdate"].(string))
+	}
+	_, ok = payload.Payload["enddate"]
+	if ok {
+		t.Error("enddate was found in the payload when it wasn't expected")
+	}
+}
+
+func TestNotificationWithoutEmail(t *testing.T) {
+
+	// Disable emails for this notification.
+	req := getLegacyNotificationRequest()
+	req["email"] = false
+
+	// Create the AMQP delivery for testing.
+	requestBody, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("unable to marshal the notification request: %s", err.Error())
+	}
+	delivery := amqp.Delivery{Body: requestBody}
+
+	// The database and messaging clients along with the handler.
+	databaseClient := NewMockDatabaseClient()
+	messagingClient := NewMockMessagingClient()
+	handler := NewLegacy(databaseClient, messagingClient)
+
+	// Pass the delivery to the handler.
+	err = handler.HandleMessage("analysis", delivery)
+	if err != nil {
+		t.Fatalf("unxpected error returned by legacy handler: %s", err.Error())
+	}
+
+	// Verify that a transaction was created and committed.
+	if !databaseClient.BeginCalled {
+		t.Errorf("no database transaction was started")
+	}
+	if !databaseClient.CommitCalled {
+		t.Errorf("the database transaction was not committed")
+	}
+
+	// Verify that a notification was saved.
+	savedNotification := databaseClient.SavedNotification
+	if savedNotification == nil {
+		t.Fatalf("no notification was saved")
+	}
+
+	// Verify that an email request was not sent.
+	emailRequest := messagingClient.PublishedEmailRequest
+	if emailRequest != nil {
+		t.Fatalf("an email request was published when none was expected")
+	}
+
+	// Verify that the notification was published and spot-check a couple of fields.
+	notification := messagingClient.PublishedNotificationMessage
+	if notification == nil {
+		t.Fatalf("no notification was published")
+	}
 }
