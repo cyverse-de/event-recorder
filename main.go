@@ -45,12 +45,14 @@ func parseCommandLine() *commandLineOptionValues {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n\n", err)
 		fmt.Fprintf(os.Stderr, opt.Help(getoptions.HelpSynopsis))
+		os.Exit(1)
 	}
 
 	return optionValues
 }
 
 func main() {
+
 	// Parse the command-line.
 	optionValues := parseCommandLine()
 

@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// AddUser adds a user to the `users` table in the notificaitons database, returning
+// AddUser adds a user to the `users` table in the notifications database, returning
 // the ID assigned to the user.
 func AddUser(tx *sql.Tx, user string) (string, error) {
 	wrapMsg := fmt.Sprintf("unable to add `%s` to the users table", user)
