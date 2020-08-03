@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/cyverse-de/event-recorder/common"
-	"github.com/cyverse-de/messaging"
+	"gopkg.in/cyverse-de/messaging.v7"
 	"github.com/streadway/amqp"
 )
 
