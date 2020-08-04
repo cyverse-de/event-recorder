@@ -33,7 +33,7 @@ spec:
         - name: event-recorder
           image: discoenv/event-recorder
           resources:
-            event-recorder:
+            requests:
               cpu: "1m"
               memory: "128Mi"
             limits:
