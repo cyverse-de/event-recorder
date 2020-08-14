@@ -41,6 +41,9 @@ func NewMockMessagingClient() *MockMessagingClient {
 // client.
 const FakeNotificationID = "46ae63be-7030-4cdd-8eb9-66aa49fcf38b"
 
+// FakeRoutingKey is the routing key that will be used for all AMQP delveries in this test.
+const FakeRoutingKey = "events.notification.update.foo"
+
 // MockDatabaseClient provides mock implementations of functions that handlers call to interact with the
 // database.
 type MockDatabaseClient struct {
@@ -97,7 +100,7 @@ func NewMockDatabaseClient() *MockDatabaseClient {
 }
 
 // getLegacyNotificationRequest returns a map that can be used as a request
-// for a legacy notification request.
+// for a legacy notification.
 func getLegacyNotificationRequest() map[string]interface{} {
 	return map[string]interface{}{
 		"type":      "analysis",
@@ -139,7 +142,7 @@ func TestNotification(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to marshal the notification request: %s", err.Error())
 	}
-	delivery := amqp.Delivery{Body: requestBody}
+	delivery := amqp.Delivery{Body: requestBody, RoutingKey: FakeRoutingKey}
 
 	// The database and messaging clients along with the handler.
 	databaseClient := NewMockDatabaseClient()
@@ -172,6 +175,10 @@ func TestNotification(t *testing.T) {
 	user := savedNotification.User
 	if user != "sarahr" {
 		t.Errorf("incorrect user in notification: got '%s'; expected 'sarahr'", user)
+	}
+	routingKey := savedNotification.RoutingKey
+	if routingKey != FakeRoutingKey {
+		t.Errorf("incorrect routing key in notification: got '%s'; expected '%s'", routingKey, FakeRoutingKey)
 	}
 
 	// Verify that the outgoing notification was saved in the database and spot-check a couple of fields.
@@ -235,7 +242,7 @@ func TestNotificationWithoutEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to marshal the notification request: %s", err.Error())
 	}
-	delivery := amqp.Delivery{Body: requestBody}
+	delivery := amqp.Delivery{Body: requestBody, RoutingKey: FakeRoutingKey}
 
 	// The database and messaging clients along with the handler.
 	databaseClient := NewMockDatabaseClient()

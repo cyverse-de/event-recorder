@@ -190,6 +190,7 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 		Deleted:          false,
 		TimeCreated:      timeCreated,
 		Message:          string(delivery.Body),
+		RoutingKey:       delivery.RoutingKey,
 	}
 	err = lh.dbc.SaveNotification(tx, storableRequest)
 	if err != nil {

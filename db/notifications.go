@@ -32,7 +32,15 @@ func SaveNotification(tx *sql.Tx, notification *common.Notification) error {
 	statement, args, err := sq.StatementBuilder.
 		PlaceholderFormat(sq.Dollar).
 		Insert("notifications").
-		Columns("notification_type_id", "user_id", "subject", "seen", "deleted", "time_created", "incoming_json").
+		Columns(
+			"notification_type_id",
+			"user_id",
+			"subject",
+			"seen",
+			"deleted",
+			"time_created",
+			"incoming_json",
+			"routing_key").
 		Values(
 			notificationTypeID,
 			userID,
@@ -40,7 +48,8 @@ func SaveNotification(tx *sql.Tx, notification *common.Notification) error {
 			notification.Seen,
 			notification.Deleted,
 			notification.TimeCreated,
-			notification.Message).
+			notification.Message,
+			notification.RoutingKey).
 		Suffix("RETURNING id").
 		ToSql()
 	if err != nil {
