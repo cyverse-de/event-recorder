@@ -6,9 +6,9 @@ import (
 	"github.com/cyverse-de/event-recorder/db"
 
 	"github.com/cyverse-de/event-recorder/common"
-	"gopkg.in/cyverse-de/messaging.v7"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
+	"gopkg.in/cyverse-de/messaging.v7"
 )
 
 // MessageHandler describes the interface used to handle AMQP messages.
@@ -31,6 +31,7 @@ type DatabaseClient interface {
 	Commit(*sql.Tx) error
 	Rollback(*sql.Tx) error
 	SaveNotification(*sql.Tx, *common.Notification) error
+	SaveOutgoingNotification(*sql.Tx, *messaging.NotificationMessage) error
 }
 
 // DatabaseClientImpl provides the default implementation of DatabaseClient.
@@ -56,6 +57,14 @@ func (c *DatabaseClientImpl) Rollback(tx *sql.Tx) error {
 // SaveNotification saves a notification in the database.
 func (c *DatabaseClientImpl) SaveNotification(tx *sql.Tx, notification *common.Notification) error {
 	return db.SaveNotification(tx, notification)
+}
+
+// SaveOutgoingNotification adds the outbound notification JSON to the notification record in the database.
+func (c *DatabaseClientImpl) SaveOutgoingNotification(
+	tx *sql.Tx,
+	outgoingNotification *messaging.NotificationMessage,
+) error {
+	return db.SaveOutgoingNotification(tx, outgoingNotification)
 }
 
 // NewDatabaseClient creates a new default database client implementation.

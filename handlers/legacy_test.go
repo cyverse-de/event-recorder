@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/cyverse-de/event-recorder/common"
-	"gopkg.in/cyverse-de/messaging.v7"
 	"github.com/streadway/amqp"
+	"gopkg.in/cyverse-de/messaging.v7"
 )
 
 // MockMessagingClient provides mock implementations of the functions we need from messaging.Client.
@@ -44,10 +44,11 @@ const FakeNotificationID = "46ae63be-7030-4cdd-8eb9-66aa49fcf38b"
 // MockDatabaseClient provides mock implementations of functions that handlers call to interact with the
 // database.
 type MockDatabaseClient struct {
-	BeginCalled       bool
-	CommitCalled      bool
-	RollbackCalled    bool
-	SavedNotification *common.Notification
+	BeginCalled          bool
+	CommitCalled         bool
+	RollbackCalled       bool
+	SavedNotification    *common.Notification
+	savedOutgoingMessage *messaging.NotificationMessage
 }
 
 // Begin records the fact that it was called.
@@ -75,13 +76,23 @@ func (c *MockDatabaseClient) SaveNotification(tx *sql.Tx, notification *common.N
 	return nil
 }
 
+// SaveOutgoingNotification records a copy of the notification message that was saved.
+func (c *MockDatabaseClient) SaveOutgoingNotification(
+	tx *sql.Tx,
+	outgoingNotification *messaging.NotificationMessage,
+) error {
+	c.savedOutgoingMessage = outgoingNotification
+	return nil
+}
+
 // NewMockDatabaseClient creates a new mock database client for testing.
 func NewMockDatabaseClient() *MockDatabaseClient {
 	return &MockDatabaseClient{
-		BeginCalled:       false,
-		CommitCalled:      false,
-		RollbackCalled:    false,
-		SavedNotification: nil,
+		BeginCalled:          false,
+		CommitCalled:         false,
+		RollbackCalled:       false,
+		SavedNotification:    nil,
+		savedOutgoingMessage: nil,
 	}
 }
 
@@ -161,6 +172,18 @@ func TestNotification(t *testing.T) {
 	user := savedNotification.User
 	if user != "sarahr" {
 		t.Errorf("incorrect user in notification: got '%s'; expected 'sarahr'", user)
+	}
+
+	// Verify that the outgoing notification was saved in the database and spot-check a couple of fields.
+	savedOutgoingMessage := databaseClient.savedOutgoingMessage
+	if savedOutgoingMessage == nil {
+		t.Fatalf("the outbound notification message was not recorded in the database")
+	}
+	if savedOutgoingMessage.Message["id"] != FakeNotificationID {
+		t.Errorf("incorrect ID in notification message: %s", savedOutgoingMessage.Message["id"])
+	}
+	if !timestampFormatCorrect(savedOutgoingMessage.Message["timestamp"].(string)) {
+		t.Errorf("incorrect timestamp format: %s", savedOutgoingMessage.Message["timestamp"].(string))
 	}
 
 	// Verify that an email request was sent and spot-check a couple of fields.

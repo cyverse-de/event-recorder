@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/cyverse-de/event-recorder/common"
-	"gopkg.in/cyverse-de/messaging.v7"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
+	"gopkg.in/cyverse-de/messaging.v7"
 )
 
 // LegacyRequest represents a deserialized request for a backwards compatible notification.
@@ -110,11 +110,15 @@ func fixTimestamp(m map[string]interface{}, k string) error {
 	return nil
 }
 
-// sendNotificationMessage sends the notification message to the Discovery
-// Environment UI. This function changes the request payload, so it should
-// be called last.
-func (lh *Legacy) sendNotificationMessage(request *common.Notification, payload *LegacyRequest) error {
-	wrapMsg := "unable to send notification message"
+// buildNotificationMessage formats the outgoing notification message destined
+// for the Discovery Environment UI. This function changes the message payload,
+// so it should only be called after an exact copy of the incoming message body
+// is no longer needed.
+func (lh *Legacy) buildNotificationMessage(
+	request *common.Notification,
+	payload *LegacyRequest,
+) (*messaging.NotificationMessage, error) {
+	wrapMsg := "unable to build notification message"
 
 	// The message portion of the request sent to the UI is a JSON object.
 	outgoingMessage := map[string]interface{}{
@@ -126,13 +130,13 @@ func (lh *Legacy) sendNotificationMessage(request *common.Notification, payload 
 	// Ensure that the analysis start date is in the correct format if it's present.
 	err := fixTimestamp(payload.Payload, "startdate")
 	if err != nil {
-		return errors.Wrap(err, wrapMsg)
+		return nil, errors.Wrap(err, wrapMsg)
 	}
 
 	// Ensure that the analysis end date is in the correct format if it's present.
 	err = fixTimestamp(payload.Payload, "enddate")
 	if err != nil {
-		return errors.Wrap(err, wrapMsg)
+		return nil, errors.Wrap(err, wrapMsg)
 	}
 
 	// Replace underscores with spaces in the notification type.
@@ -151,10 +155,7 @@ func (lh *Legacy) sendNotificationMessage(request *common.Notification, payload 
 		User:          request.User,
 	}
 
-	// Publish the notification message.
-	lh.messagingClient.PublishNotificationMessage(notificationMessage)
-
-	return nil
+	return notificationMessage, nil
 }
 
 // HandleMessage handles a single AMQP delivery.
@@ -203,8 +204,20 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 		}
 	}
 
-	// Send the notification message to the UI.
-	err = lh.sendNotificationMessage(storableRequest, &request)
+	// Build the notification message.
+	notificationMessage, err := lh.buildNotificationMessage(storableRequest, &request)
+	if err != nil {
+		return err
+	}
+
+	// Save the outgoing notificaiton in the database.
+	err = lh.dbc.SaveOutgoingNotification(tx, notificationMessage)
+	if err != nil {
+		return err
+	}
+
+	// Publish the outgoing notification message.
+	err = lh.messagingClient.PublishNotificationMessage(notificationMessage)
 	if err != nil {
 		return err
 	}
