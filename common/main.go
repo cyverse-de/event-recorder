@@ -23,6 +23,7 @@ type Notification struct {
 	Deleted          bool
 	TimeCreated      time.Time
 	Message          string
+	RoutingKey       string
 }
 
 // ValidateEmailAddress returns an error if the format of an email address is invalid.
