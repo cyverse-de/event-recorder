@@ -8,7 +8,7 @@ import (
 
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/streadway/amqp"
-	"gopkg.in/cyverse-de/messaging.v7"
+	"gopkg.in/cyverse-de/messaging.v8"
 )
 
 // MockMessagingClient provides mock implementations of the functions we need from messaging.Client.

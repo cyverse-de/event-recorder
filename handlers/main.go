@@ -8,7 +8,7 @@ import (
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
-	"gopkg.in/cyverse-de/messaging.v7"
+	"gopkg.in/cyverse-de/messaging.v8"
 )
 
 // MessageHandler describes the interface used to handle AMQP messages.

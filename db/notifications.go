@@ -7,7 +7,7 @@ import (
 
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/pkg/errors"
-	"gopkg.in/cyverse-de/messaging.v7"
+	"gopkg.in/cyverse-de/messaging.v8"
 
 	sq "github.com/Masterminds/squirrel"
 )
