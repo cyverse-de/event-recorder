@@ -13,12 +13,12 @@ import (
 
 // MockMessagingClient provides mock implementations of the functions we need from messaging.Client.
 type MockMessagingClient struct {
-	PublishedNotificationMessage *messaging.NotificationMessage
+	PublishedNotificationMessage *messaging.WrappedNotificationMessage
 	PublishedEmailRequest        *messaging.EmailRequest
 }
 
 // PublishNotificationMessage simply stores a copy of the notification message for later inspection.
-func (c *MockMessagingClient) PublishNotificationMessage(msg *messaging.NotificationMessage) error {
+func (c *MockMessagingClient) PublishNotificationMessage(msg *messaging.WrappedNotificationMessage) error {
 	c.PublishedNotificationMessage = msg
 	return nil
 }
@@ -52,6 +52,7 @@ type MockDatabaseClient struct {
 	RollbackCalled       bool
 	SavedNotification    *common.Notification
 	savedOutgoingMessage *messaging.NotificationMessage
+	unreadMessageCount   int64
 }
 
 // Begin records the fact that it was called.
@@ -88,14 +89,21 @@ func (c *MockDatabaseClient) SaveOutgoingNotification(
 	return nil
 }
 
+// CountUnreadNotifications counts the number of notifications for the user that have not been marked as read
+// or deleted.
+func (c *MockDatabaseClient) CountUnreadNotifications(tx *sql.Tx, user string) (int64, error) {
+	return c.unreadMessageCount, nil
+}
+
 // NewMockDatabaseClient creates a new mock database client for testing.
-func NewMockDatabaseClient() *MockDatabaseClient {
+func NewMockDatabaseClient(unreadMessageCount int64) *MockDatabaseClient {
 	return &MockDatabaseClient{
 		BeginCalled:          false,
 		CommitCalled:         false,
 		RollbackCalled:       false,
 		SavedNotification:    nil,
 		savedOutgoingMessage: nil,
+		unreadMessageCount:   unreadMessageCount,
 	}
 }
 
@@ -145,7 +153,7 @@ func TestNotification(t *testing.T) {
 	delivery := amqp.Delivery{Body: requestBody, RoutingKey: FakeRoutingKey}
 
 	// The database and messaging clients along with the handler.
-	databaseClient := NewMockDatabaseClient()
+	databaseClient := NewMockDatabaseClient(42)
 	messagingClient := NewMockMessagingClient()
 	handler := NewLegacy(databaseClient, messagingClient)
 
@@ -210,15 +218,18 @@ func TestNotification(t *testing.T) {
 	if notification == nil {
 		t.Fatalf("no notification was published")
 	}
-	if notification.Message["id"] != FakeNotificationID {
-		t.Errorf("incorrect ID in notification message: %s", notification.Message["id"])
+	if notification.Message.Message["id"] != FakeNotificationID {
+		t.Errorf("incorrect ID in notification message: %s", notification.Message.Message["id"])
 	}
-	if !timestampFormatCorrect(notification.Message["timestamp"].(string)) {
-		t.Errorf("incorrect timestamp format: %s", notification.Message["timestamp"].(string))
+	if notification.Total != 42 {
+		t.Errorf("incorrect total: %d\n", notification.Total)
+	}
+	if !timestampFormatCorrect(notification.Message.Message["timestamp"].(string)) {
+		t.Errorf("incorrect timestamp format: %s", notification.Message.Message["timestamp"].(string))
 	}
 
 	// Spot-check some fields in the payload.
-	payload, ok := notification.Payload.(*LegacyRequest)
+	payload, ok := notification.Message.Payload.(*LegacyRequest)
 	if !ok {
 		t.Fatal("payload doesn't appear to be a LegacyRequest")
 	}
@@ -245,7 +256,7 @@ func TestNotificationWithoutEmail(t *testing.T) {
 	delivery := amqp.Delivery{Body: requestBody, RoutingKey: FakeRoutingKey}
 
 	// The database and messaging clients along with the handler.
-	databaseClient := NewMockDatabaseClient()
+	databaseClient := NewMockDatabaseClient(42)
 	messagingClient := NewMockMessagingClient()
 	handler := NewLegacy(databaseClient, messagingClient)
 

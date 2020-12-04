@@ -21,7 +21,7 @@ type MessageHandler interface {
 // will be used. Otherwise, messaging.Client will be used directly.
 type MessagingClient interface {
 	PublishEmailRequest(*messaging.EmailRequest) error
-	PublishNotificationMessage(*messaging.NotificationMessage) error
+	PublishNotificationMessage(*messaging.WrappedNotificationMessage) error
 }
 
 // DatabaseClient provides a wrapper around functions that handlers might call in order to interact
@@ -32,6 +32,7 @@ type DatabaseClient interface {
 	Rollback(*sql.Tx) error
 	SaveNotification(*sql.Tx, *common.Notification) error
 	SaveOutgoingNotification(*sql.Tx, *messaging.NotificationMessage) error
+	CountUnreadNotifications(*sql.Tx, string) (int64, error)
 }
 
 // DatabaseClientImpl provides the default implementation of DatabaseClient.
@@ -65,6 +66,11 @@ func (c *DatabaseClientImpl) SaveOutgoingNotification(
 	outgoingNotification *messaging.NotificationMessage,
 ) error {
 	return db.SaveOutgoingNotification(tx, outgoingNotification)
+}
+
+// CountUnreadNotifications counts the number of notifications for the user that haven't been marked as read.
+func (c *DatabaseClientImpl) CountUnreadNotifications(tx *sql.Tx, user string) (int64, error) {
+	return db.CountUnreadNotifications(tx, user)
 }
 
 // NewDatabaseClient creates a new default database client implementation.

@@ -217,8 +217,20 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 		return err
 	}
 
+	// Count the number of unread notifications.
+	unreadNotificationCount, err := lh.dbc.CountUnreadNotifications(tx, request.User)
+	if err != nil {
+		return err
+	}
+
+	// Add the wrapper around the notification message.
+	wrappedNotificationMessage := &messaging.WrappedNotificationMessage{
+		Message: notificationMessage,
+		Total:   unreadNotificationCount,
+	}
+
 	// Publish the outgoing notification message.
-	err = lh.messagingClient.PublishNotificationMessage(notificationMessage)
+	err = lh.messagingClient.PublishNotificationMessage(wrappedNotificationMessage)
 	if err != nil {
 		return err
 	}
