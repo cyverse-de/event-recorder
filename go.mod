@@ -8,12 +8,10 @@ require (
 	github.com/cyverse-de/configurate v0.0.0-20200527185205-4e1e92866cee
 	github.com/cyverse-de/dbutil v0.0.0-20200527185309-2b32eb41f45e
 	github.com/cyverse-de/logcabin v0.0.0-20200527185931-2ccd850e39ad
-	github.com/cyverse-de/model v0.0.0-20201119234350-9073d4e20499 // indirect
 	github.com/lib/pq v1.7.0
 	github.com/mcnijman/go-emailaddress v1.1.0
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.7.0 // indirect
 	github.com/streadway/amqp v1.0.0
-	gopkg.in/cyverse-de/messaging.v8 v8.1.0
-	gopkg.in/cyverse-de/model.v5 v5.0.0-20201119234350-9073d4e20499 // indirect
+	gopkg.in/cyverse-de/messaging.v8 v8.2.0
 )
