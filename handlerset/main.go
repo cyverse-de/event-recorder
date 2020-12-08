@@ -7,7 +7,7 @@ import (
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/handlers"
 	"github.com/cyverse-de/logcabin"
-	"gopkg.in/cyverse-de/messaging.v7"
+	"gopkg.in/cyverse-de/messaging.v8"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )

@@ -13,5 +13,5 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.7.0 // indirect
 	github.com/streadway/amqp v1.0.0
-	gopkg.in/cyverse-de/messaging.v7 v7.1.0
+	gopkg.in/cyverse-de/messaging.v8 v8.2.0
 )

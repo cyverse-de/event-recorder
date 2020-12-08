@@ -7,12 +7,40 @@ import (
 
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/pkg/errors"
-	"gopkg.in/cyverse-de/messaging.v7"
+	"gopkg.in/cyverse-de/messaging.v8"
 
 	sq "github.com/Masterminds/squirrel"
 )
 
-// SaveNotification sabves a single notification into the database.
+// CountUnreadNotifications counts the number of notifications for the user that haven't been marked as read.
+func CountUnreadNotifications(tx *sql.Tx, user string) (int64, error) {
+	wrapMsg := "unable to count unread notifications"
+	var total int64
+
+	// Build the statement to count the unread notifications.
+	statement, args, err := sq.StatementBuilder.
+		PlaceholderFormat(sq.Dollar).
+		Select("count(*)").
+		From("notifications n").
+		Join("users u ON n.user_id = u.id").
+		Where(sq.Eq{"u.username": user}).
+		Where(sq.Eq{"n.deleted": false}).
+		Where(sq.Eq{"n.seen": false}).
+		ToSql()
+	if err != nil {
+		return 0, errors.Wrap(err, wrapMsg)
+	}
+
+	// Execute the statement.
+	err = tx.QueryRow(statement, args...).Scan(&total)
+	if err != nil {
+		return 0, errors.Wrap(err, wrapMsg)
+	}
+
+	return total, nil
+}
+
+// SaveNotification saves a single notification into the database.
 func SaveNotification(tx *sql.Tx, notification *common.Notification) error {
 	wrapMsg := "unable to save notification"
 
