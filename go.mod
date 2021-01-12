@@ -13,5 +13,6 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.7.0 // indirect
 	github.com/streadway/amqp v1.0.0
+	github.com/stretchr/testify v1.3.0
 	gopkg.in/cyverse-de/messaging.v8 v8.2.0
 )

@@ -120,11 +120,17 @@ func (lh *Legacy) buildNotificationMessage(
 ) (*messaging.NotificationMessage, error) {
 	wrapMsg := "unable to build notification message"
 
+	// Determine the primary text of the message portion of the notification.
+	messageText := payload.Message
+	if messageText == "" {
+		messageText = payload.Subject
+	}
+
 	// The message portion of the request sent to the UI is a JSON object.
 	outgoingMessage := map[string]interface{}{
 		"id":        request.ID,
 		"timestamp": common.FormatTimestamp(request.TimeCreated),
-		"text":      payload.Message,
+		"text":      messageText,
 	}
 
 	// Ensure that the analysis start date is in the correct format if it's present.

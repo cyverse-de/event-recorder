@@ -8,6 +8,7 @@ import (
 
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/streadway/amqp"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/cyverse-de/messaging.v8"
 )
 
@@ -144,6 +145,7 @@ func timestampFormatCorrect(timestamp string) bool {
 }
 
 func TestNotification(t *testing.T) {
+	assert := assert.New(t)
 
 	// Create the AMQP delivery for testing.
 	requestBody, err := json.Marshal(getLegacyNotificationRequest())
@@ -164,85 +166,67 @@ func TestNotification(t *testing.T) {
 	}
 
 	// Verify that a transaction was created and committed.
-	if !databaseClient.BeginCalled {
-		t.Errorf("no database transaction was started")
-	}
-	if !databaseClient.CommitCalled {
-		t.Errorf("the database transaction was not committed")
-	}
+	assert.True(databaseClient.BeginCalled, "no database transaction was started")
+	assert.True(databaseClient.CommitCalled, "the database transaction was not committed")
 
 	// Verify that a notification was saved and spot-check a couple of fields.
 	savedNotification := databaseClient.SavedNotification
 	if savedNotification == nil {
 		t.Fatalf("no notification was saved")
 	}
-	notificationType := savedNotification.NotificationType
-	if notificationType != "analysis" {
-		t.Errorf("incorrect type in notifiation: got '%s'; expected 'analysis'", notificationType)
-	}
-	user := savedNotification.User
-	if user != "sarahr" {
-		t.Errorf("incorrect user in notification: got '%s'; expected 'sarahr'", user)
-	}
-	routingKey := savedNotification.RoutingKey
-	if routingKey != FakeRoutingKey {
-		t.Errorf("incorrect routing key in notification: got '%s'; expected '%s'", routingKey, FakeRoutingKey)
-	}
+	assert.Equal("analysis", savedNotification.NotificationType, "incorrect notification type")
+	assert.Equal("sarahr", savedNotification.User, "incorrect user")
+	assert.Equal(FakeRoutingKey, savedNotification.RoutingKey, "incorrect routing key")
 
 	// Verify that the outgoing notification was saved in the database and spot-check a couple of fields.
 	savedOutgoingMessage := databaseClient.savedOutgoingMessage
 	if savedOutgoingMessage == nil {
 		t.Fatalf("the outbound notification message was not recorded in the database")
 	}
-	if savedOutgoingMessage.Message["id"] != FakeNotificationID {
-		t.Errorf("incorrect ID in notification message: %s", savedOutgoingMessage.Message["id"])
-	}
-	if !timestampFormatCorrect(savedOutgoingMessage.Message["timestamp"].(string)) {
-		t.Errorf("incorrect timestamp format: %s", savedOutgoingMessage.Message["timestamp"].(string))
-	}
+	assert.Equal(FakeNotificationID, savedOutgoingMessage.Message["id"], "incorrect ID")
+	assert.Truef(
+		timestampFormatCorrect(savedOutgoingMessage.Message["timestamp"].(string)),
+		"incorrect timestamp format: %s",
+		savedOutgoingMessage.Message["timestamp"].(string),
+	)
 
 	// Verify that an email request was sent and spot-check a couple of fields.
 	emailRequest := messagingClient.PublishedEmailRequest
 	if emailRequest == nil {
 		t.Fatalf("no email request was published")
 	}
-	if emailRequest.Subject != "some job status changed" {
-		t.Errorf("incorrect subject in email request: %s", emailRequest.Subject)
-	}
-	if emailRequest.ToAddress != "sarahr@cyverse.org" {
-		t.Errorf("incorrect address in email request: %s", emailRequest.ToAddress)
-	}
+	assert.Equal("some job status changed", emailRequest.Subject, "incorrect subject in email request")
+	assert.Equal("sarahr@cyverse.org", emailRequest.ToAddress, "incorrect address in email request")
 
 	// Verify that the notification was published and spot-check a couple of fields.
 	notification := messagingClient.PublishedNotificationMessage
 	if notification == nil {
 		t.Fatalf("no notification was published")
 	}
-	if notification.Message.Message["id"] != FakeNotificationID {
-		t.Errorf("incorrect ID in notification message: %s", notification.Message.Message["id"])
-	}
-	if notification.Total != 42 {
-		t.Errorf("incorrect total: %d\n", notification.Total)
-	}
-	if !timestampFormatCorrect(notification.Message.Message["timestamp"].(string)) {
-		t.Errorf("incorrect timestamp format: %s", notification.Message.Message["timestamp"].(string))
-	}
+	assert.Equal(FakeNotificationID, notification.Message.Message["id"], "incorrect ID in notification")
+	assert.Equal(int64(42), notification.Total, "incorrect total")
+	assert.Truef(
+		timestampFormatCorrect(notification.Message.Message["timestamp"].(string)),
+		"incorrect timestamp format: %s",
+		notification.Message.Message["timestamp"].(string),
+	)
 
 	// Spot-check some fields in the payload.
 	payload, ok := notification.Message.Payload.(*LegacyRequest)
 	if !ok {
 		t.Fatal("payload doesn't appear to be a LegacyRequest")
 	}
-	if !timestampFormatCorrect(payload.Payload["startdate"].(string)) {
-		t.Errorf("incorrect timestamp format: %s", payload.Payload["startdate"].(string))
-	}
+	assert.Truef(
+		timestampFormatCorrect(payload.Payload["startdate"].(string)),
+		"incorrect timestamp format: %s",
+		payload.Payload["startdate"].(string),
+	)
 	_, ok = payload.Payload["enddate"]
-	if ok {
-		t.Error("enddate was found in the payload when it wasn't expected")
-	}
+	assert.False(ok, "enddate was found in the payload when it wasn't expected")
 }
 
 func TestNotificationWithoutEmail(t *testing.T) {
+	assert := assert.New(t)
 
 	// Disable emails for this notification.
 	req := getLegacyNotificationRequest()
@@ -255,7 +239,7 @@ func TestNotificationWithoutEmail(t *testing.T) {
 	}
 	delivery := amqp.Delivery{Body: requestBody, RoutingKey: FakeRoutingKey}
 
-	// The database and messaging clients along with the handler.
+	// Create the database and messaging clients along with the handler.
 	databaseClient := NewMockDatabaseClient(42)
 	messagingClient := NewMockMessagingClient()
 	handler := NewLegacy(databaseClient, messagingClient)
@@ -267,12 +251,8 @@ func TestNotificationWithoutEmail(t *testing.T) {
 	}
 
 	// Verify that a transaction was created and committed.
-	if !databaseClient.BeginCalled {
-		t.Errorf("no database transaction was started")
-	}
-	if !databaseClient.CommitCalled {
-		t.Errorf("the database transaction was not committed")
-	}
+	assert.True(databaseClient.BeginCalled, "no database transaction was started")
+	assert.True(databaseClient.CommitCalled, "the database transaction was not committed")
 
 	// Verify that a notification was saved.
 	savedNotification := databaseClient.SavedNotification
@@ -286,9 +266,52 @@ func TestNotificationWithoutEmail(t *testing.T) {
 		t.Fatalf("an email request was published when none was expected")
 	}
 
-	// Verify that the notification was published and spot-check a couple of fields.
+	// Verify that the notification was published.
 	notification := messagingClient.PublishedNotificationMessage
 	if notification == nil {
 		t.Fatalf("no notification was published")
 	}
+}
+
+func TestNotificationWithoutMessage(t *testing.T) {
+	assert := assert.New(t)
+
+	// This notification should have no message.
+	req := getLegacyNotificationRequest()
+	req["message"] = ""
+
+	// Create the AMQP delivery for testing.
+	requestBody, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("unable to marshal the notification request: %s", err.Error())
+	}
+	delivery := amqp.Delivery{Body: requestBody, RoutingKey: FakeRoutingKey}
+
+	// Create the database and messaging clients aloing with the handler.
+	databaseClient := NewMockDatabaseClient(42)
+	messagingClient := NewMockMessagingClient()
+	handler := NewLegacy(databaseClient, messagingClient)
+
+	// Pass the delivery to the handler.
+	err = handler.HandleMessage("analysis", delivery)
+	if err != nil {
+		t.Fatalf("unexpected error returned by legacy handler: %s", err.Error())
+	}
+
+	// Verify that a transaction was created and committed.
+	assert.True(databaseClient.BeginCalled, "no database transaction was started")
+	assert.True(databaseClient.CommitCalled, "the database transaction was not committed")
+
+	// Verify that a notification was saved.
+	assert.NotNil(databaseClient.SavedNotification, "no notification was saved")
+
+	// Verify that an email request was sent.
+	assert.NotNil(messagingClient.PublishedEmailRequest, "no email request was published")
+
+	// Verify that the notification was published and verify that the message text is correct.
+	notification := messagingClient.PublishedNotificationMessage
+	if notification == nil {
+		t.Fatalf("no notification was published")
+	}
+	assert.Equal(req["subject"], notification.Message.Message["text"], "incorrect message text")
 }
