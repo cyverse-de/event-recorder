@@ -154,7 +154,7 @@ func (lh *Legacy) buildNotificationMessage(
 		Email:         payload.Email,
 		EmailTemplate: payload.EmailTemplate,
 		Message:       outgoingMessage,
-		Payload:       payload,
+		Payload:       payload.Payload,
 		Seen:          request.Seen,
 		Subject:       request.Subject,
 		Type:          strings.ReplaceAll(request.NotificationType, "_", " "),
