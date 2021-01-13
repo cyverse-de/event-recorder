@@ -212,16 +212,16 @@ func TestNotification(t *testing.T) {
 	)
 
 	// Spot-check some fields in the payload.
-	payload, ok := notification.Message.Payload.(*LegacyRequest)
+	payload, ok := notification.Message.Payload.(map[string]interface{})
 	if !ok {
-		t.Fatal("payload doesn't appear to be a LegacyRequest")
+		t.Fatal("payload doesn't appear to be a map")
 	}
 	assert.Truef(
-		timestampFormatCorrect(payload.Payload["startdate"].(string)),
+		timestampFormatCorrect(payload["startdate"].(string)),
 		"incorrect timestamp format: %s",
-		payload.Payload["startdate"].(string),
+		payload["startdate"].(string),
 	)
-	_, ok = payload.Payload["enddate"]
+	_, ok = payload["enddate"]
 	assert.False(ok, "enddate was found in the payload when it wasn't expected")
 }
 
