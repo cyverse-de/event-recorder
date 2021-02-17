@@ -315,3 +315,52 @@ func TestNotificationWithoutMessage(t *testing.T) {
 	}
 	assert.Equal(req["subject"], notification.Message.Message["text"], "incorrect message text")
 }
+
+func TestNotificationWithUpperCaseUpdateType(t *testing.T) {
+	assert := assert.New(t)
+
+	// Create the AMQP delivery for testing.
+	requestBody, err := json.Marshal(getLegacyNotificationRequest())
+	if err != nil {
+		t.Fatalf("unable to marshal the notification request: %s", err.Error())
+	}
+	delivery := amqp.Delivery{Body: requestBody, RoutingKey: FakeRoutingKey}
+
+	// The database and messaging clients along with the handler.
+	databaseClient := NewMockDatabaseClient(42)
+	messagingClient := NewMockMessagingClient()
+	handler := NewLegacy(databaseClient, messagingClient)
+
+	// Pass the delivery to the handler.
+	err = handler.HandleMessage("ANALYSIS", delivery)
+	if err != nil {
+		t.Fatalf("unxpected error returned by legacy handler: %s", err.Error())
+	}
+
+	// Verify that a transaction was created and committed.
+	assert.True(databaseClient.BeginCalled, "no database transaction was started")
+	assert.True(databaseClient.CommitCalled, "the database transaction was not committed")
+
+	// Verify that a notification was saved and spot-check a couple of fields.
+	savedNotification := databaseClient.SavedNotification
+	if savedNotification == nil {
+		t.Fatalf("no notification was saved")
+	}
+	assert.Equal("analysis", savedNotification.NotificationType, "incorrect notification type")
+	assert.Equal("sarahr", savedNotification.User, "incorrect user")
+	assert.Equal(FakeRoutingKey, savedNotification.RoutingKey, "incorrect routing key")
+
+	// Verify that the outgoing notification was saved in the database and check the notification type.
+	savedOutgoingMessage := databaseClient.savedOutgoingMessage
+	if savedOutgoingMessage == nil {
+		t.Fatalf("the outbound notification message was not recorded in the database")
+	}
+	assert.Equal("analysis", savedOutgoingMessage.Type, "incorrect notification type")
+
+	// Verify that the notification was published and check the notification type.
+	notification := messagingClient.PublishedNotificationMessage
+	if notification == nil {
+		t.Fatalf("no notification was published")
+	}
+	assert.Equal("analysis", notification.Message.Type, "incorrect notification type")
+}

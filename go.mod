@@ -3,6 +3,7 @@ module github.com/cyverse-de/event-recorder
 go 1.14
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/DavidGamba/go-getoptions v0.20.0
 	github.com/Masterminds/squirrel v1.4.0
 	github.com/cyverse-de/configurate v0.0.0-20200527185205-4e1e92866cee
