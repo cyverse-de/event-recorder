@@ -166,6 +166,7 @@ func (lh *Legacy) buildNotificationMessage(
 
 // HandleMessage handles a single AMQP delivery.
 func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error {
+	updateType = strings.ToLower(updateType)
 
 	// Parse the message body.
 	var request LegacyRequest
