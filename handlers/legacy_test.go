@@ -48,12 +48,13 @@ const FakeRoutingKey = "events.notification.update.foo"
 // MockDatabaseClient provides mock implementations of functions that handlers call to interact with the
 // database.
 type MockDatabaseClient struct {
-	BeginCalled          bool
-	CommitCalled         bool
-	RollbackCalled       bool
-	SavedNotification    *common.Notification
-	savedOutgoingMessage *messaging.NotificationMessage
-	unreadMessageCount   int64
+	BeginCalled                bool
+	CommitCalled               bool
+	RollbackCalled             bool
+	RegisteredNotificationType string
+	SavedNotification          *common.Notification
+	savedOutgoingMessage       *messaging.NotificationMessage
+	unreadMessageCount         int64
 }
 
 // Begin records the fact that it was called.
@@ -71,6 +72,12 @@ func (c *MockDatabaseClient) Commit(*sql.Tx) error {
 // Rollback records the fact that it was called.
 func (c *MockDatabaseClient) Rollback(*sql.Tx) error {
 	c.RollbackCalled = true
+	return nil
+}
+
+// RegisterNotificationType records a notification type that has been registered.
+func (c *MockDatabaseClient) RegisterNotificationType(tx *sql.Tx, notificationType string) error {
+	c.RegisteredNotificationType = notificationType
 	return nil
 }
 
@@ -169,6 +176,9 @@ func TestNotification(t *testing.T) {
 	assert.True(databaseClient.BeginCalled, "no database transaction was started")
 	assert.True(databaseClient.CommitCalled, "the database transaction was not committed")
 
+	// Verify that the notification type was registered.
+	assert.Equal("analysis", databaseClient.RegisteredNotificationType)
+
 	// Verify that a notification was saved and spot-check a couple of fields.
 	savedNotification := databaseClient.SavedNotification
 	if savedNotification == nil {
@@ -254,6 +264,9 @@ func TestNotificationWithoutEmail(t *testing.T) {
 	assert.True(databaseClient.BeginCalled, "no database transaction was started")
 	assert.True(databaseClient.CommitCalled, "the database transaction was not committed")
 
+	// Verify that the notification type was registered.
+	assert.Equal("analysis", databaseClient.RegisteredNotificationType)
+
 	// Verify that a notification was saved.
 	savedNotification := databaseClient.SavedNotification
 	if savedNotification == nil {
@@ -302,6 +315,9 @@ func TestNotificationWithoutMessage(t *testing.T) {
 	assert.True(databaseClient.BeginCalled, "no database transaction was started")
 	assert.True(databaseClient.CommitCalled, "the database transaction was not committed")
 
+	// Verify that the notification type was registered.
+	assert.Equal("analysis", databaseClient.RegisteredNotificationType)
+
 	// Verify that a notification was saved.
 	assert.NotNil(databaseClient.SavedNotification, "no notification was saved")
 
@@ -340,6 +356,9 @@ func TestNotificationWithUpperCaseUpdateType(t *testing.T) {
 	// Verify that a transaction was created and committed.
 	assert.True(databaseClient.BeginCalled, "no database transaction was started")
 	assert.True(databaseClient.CommitCalled, "the database transaction was not committed")
+
+	// Verify that the notification type was registered.
+	assert.Equal("analysis", databaseClient.RegisteredNotificationType)
 
 	// Verify that a notification was saved and spot-check a couple of fields.
 	savedNotification := databaseClient.SavedNotification
