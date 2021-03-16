@@ -35,3 +35,28 @@ func GetNotificationTypeID(tx *sql.Tx, notificationType string) (string, error) 
 
 	return id, nil
 }
+
+// RegisterNotificationType registers a new notification type.
+func RegisterNotificationType(tx *sql.Tx, notificationType string) error {
+	wrapMsg := fmt.Sprintf("unable to register the notification type, `%s`", notificationType)
+
+	// Build the SQL statement and arguments.
+	query, args, err := sq.StatementBuilder.
+		PlaceholderFormat(sq.Dollar).
+		Insert("notification_types").
+		Columns("name").
+		Values(notificationType).
+		Suffix("ON CONFLICT DO NOTHING").
+		ToSql()
+	if err != nil {
+		return errors.Wrap(err, wrapMsg)
+	}
+
+	// Query the database.
+	_, err = tx.Exec(query, args...)
+	if err != nil {
+		return errors.Wrap(err, wrapMsg)
+	}
+
+	return nil
+}

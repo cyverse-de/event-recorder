@@ -32,5 +32,33 @@ func TestGetNotificationTypeID(t *testing.T) {
 	tx.Rollback()
 
 	// Verify that all mock expectations were met.
+	err = mock.ExpectationsWereMet()
 	assert.NoError(err, "not all mock expectations were met")
+}
+
+func TestRegisterNotificationType(t *testing.T) {
+	assert := assert.New(t)
+
+	db, mock, err := sqlmock.New()
+	assert.NoError(err, "unable to open the mock database connection")
+	defer db.Close()
+
+	// Set up the expectations.
+	mock.ExpectBegin()
+	testType := "test_notification_type"
+	mock.ExpectExec("INSERT INTO notification_types \\(name\\)").
+		WithArgs(testType).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectRollback()
+
+	// Register the notification type.
+	tx, err := db.Begin()
+	assert.NoError(err, "unable to begin a transaction")
+	err = RegisterNotificationType(tx, testType)
+	assert.NoError(err, "unexpected error occurred while registering the notification type")
+	tx.Rollback()
+
+	// Verify that all mock expectations were met.
+	err = mock.ExpectationsWereMet()
+	assert.NoError(err, "not all mock expectaions were met")
 }

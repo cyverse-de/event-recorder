@@ -188,6 +188,12 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 	}
 	defer lh.dbc.Rollback(tx)
 
+	// Register the notification type in case it doesn't exist in the database yet.
+	err = lh.dbc.RegisterNotificationType(tx, updateType)
+	if err != nil {
+		return NewUnrecoverableError("unable to register the notification type: %s", err.Error())
+	}
+
 	// Store the message in the database.
 	storableRequest := &common.Notification{
 		NotificationType: updateType,

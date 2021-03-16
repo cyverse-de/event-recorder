@@ -30,6 +30,7 @@ type DatabaseClient interface {
 	Begin() (*sql.Tx, error)
 	Commit(*sql.Tx) error
 	Rollback(*sql.Tx) error
+	RegisterNotificationType(*sql.Tx, string) error
 	SaveNotification(*sql.Tx, *common.Notification) error
 	SaveOutgoingNotification(*sql.Tx, *messaging.NotificationMessage) error
 	CountUnreadNotifications(*sql.Tx, string) (int64, error)
@@ -53,6 +54,12 @@ func (c *DatabaseClientImpl) Commit(tx *sql.Tx) error {
 // Rollback rolls back an existing database transaction.
 func (c *DatabaseClientImpl) Rollback(tx *sql.Tx) error {
 	return tx.Rollback()
+}
+
+// RegisterNotificationType registers a new notification type in the database, and is a no-op if the
+// notification type already exists.
+func (c *DatabaseClientImpl) RegisterNotificationType(tx *sql.Tx, notificationType string) error {
+	return db.RegisterNotificationType(tx, notificationType)
 }
 
 // SaveNotification saves a notification in the database.
