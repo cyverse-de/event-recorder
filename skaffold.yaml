@@ -10,5 +10,5 @@ build:
   tagPolicy:
     gitCommit: {}
   artifacts:
-    - image: discoenv/event-recorder
+    - image: harbor.cyverse.org/de/event-recorder
   local: {}

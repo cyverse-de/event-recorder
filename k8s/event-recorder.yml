@@ -31,7 +31,7 @@ spec:
                 path: jobservices.yml
       containers:
         - name: event-recorder
-          image: discoenv/event-recorder
+          image: harbor.cyverse.org/de/event-recorder
           resources:
             requests:
               cpu: "1m"
