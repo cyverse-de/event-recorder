@@ -5,6 +5,7 @@ import (
 	"os"
 
 	_ "github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 
 	"github.com/DavidGamba/go-getoptions"
 	"github.com/cyverse-de/configurate"
@@ -12,8 +13,10 @@ import (
 	"github.com/cyverse-de/event-recorder/db"
 	"github.com/cyverse-de/event-recorder/handlers"
 	"github.com/cyverse-de/event-recorder/handlerset"
-	"github.com/cyverse-de/logcabin"
+	"github.com/cyverse-de/event-recorder/logging"
 )
+
+var log = logging.Log.WithFields(logrus.Fields{"package": "main"})
 
 // commandLineOptionValues represents the values of the command-line options that were passed on the command line when
 // this service was invoked.
@@ -56,13 +59,10 @@ func main() {
 	// Parse the command-line.
 	optionValues := parseCommandLine()
 
-	// Initialize logging.
-	logcabin.Init("event-recorder", "event-recorder")
-
 	// Read in the configuration file.
 	cfg, err := configurate.InitDefaults(optionValues.Config, configurate.JobServicesDefaults)
 	if err != nil {
-		logcabin.Error.Fatal(err)
+		log.Fatal(err)
 	}
 
 	// Retrieve the AMQP settings.
@@ -76,7 +76,7 @@ func main() {
 	databaseURI := cfg.GetString("notifications.db.uri")
 	db, err := db.InitDatabase("postgres", databaseURI)
 	if err != nil {
-		logcabin.Error.Fatal(err)
+		log.Fatal(err)
 	}
 	defer db.Close()
 
@@ -86,20 +86,20 @@ func main() {
 	// Initialize the message handlers.
 	messageHandlers, err := handlers.InitMessageHandlers(db, amqpSettings)
 	if err != nil {
-		logcabin.Error.Fatal(err)
+		log.Fatal(err)
 	}
 
 	// Create the message handler set.
 	handlerSet, err := handlerset.New(amqpSettings, supportEmail, messageHandlers)
 	if err != nil {
-		logcabin.Error.Fatal(err)
+		log.Fatal(err)
 	}
 	defer handlerSet.Close()
 
 	// Listen for incoming messages.
 	err = handlerSet.Listen()
 	if err != nil {
-		logcabin.Error.Fatal(err)
+		log.Fatal(err)
 	}
 
 	// Spin until someone kills the process.

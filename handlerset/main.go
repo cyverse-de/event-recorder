@@ -6,11 +6,14 @@ import (
 
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/handlers"
-	"github.com/cyverse-de/logcabin"
-	"gopkg.in/cyverse-de/messaging.v8"
+	"github.com/cyverse-de/event-recorder/logging"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"gopkg.in/cyverse-de/messaging.v8"
 )
+
+var log = logging.Log.WithFields(logrus.Fields{"package": "handlerset"})
 
 const queueName = "event_listener"
 const queueKey = "events.*.update.*"
@@ -60,7 +63,7 @@ func (hs *HandlerSet) parseRoutingKey(tag string) (string, string, error) {
 func (hs *HandlerSet) ack(delivery amqp.Delivery) {
 	err := delivery.Ack(false)
 	if err != nil {
-		logcabin.Error.Printf("unable to acknowledge delivery: %s", err.Error())
+		log.Errorf("unable to acknowledge delivery: %s", err.Error())
 	}
 }
 
@@ -68,7 +71,7 @@ func (hs *HandlerSet) ack(delivery amqp.Delivery) {
 func (hs *HandlerSet) nack(delivery amqp.Delivery, requeue bool) {
 	err := delivery.Nack(false, requeue)
 	if err != nil {
-		logcabin.Error.Printf("unable to negatively acknowledge delivery: %s", err.Error())
+		log.Errorf("unable to negatively acknowledge delivery: %s", err.Error())
 	}
 }
 
@@ -92,20 +95,20 @@ func (hs *HandlerSet) sendUnrecoverableErrorEmail(delivery amqp.Delivery, cause 
 	// Publish the request.
 	err := hs.amqpClient.PublishEmailRequest(&request)
 	if err != nil {
-		logcabin.Error.Printf("%s: %s", wrapMsg, err.Error())
+		log.Errorf("%s: %s", wrapMsg, err.Error())
 	}
 }
 
 // logDelivery logs some information about a message delivery for troubleshooting purposes.
 func (hs *HandlerSet) logDelivery(description string, delivery amqp.Delivery) {
-	logcabin.Info.Printf("%s: %s; %s", description, delivery.RoutingKey, delivery.Body)
+	log.Infof("%s: %s; %s", description, delivery.RoutingKey, delivery.Body)
 }
 
 // handleMessage handles an incoming AMQP message.
 func (hs *HandlerSet) handleMessage(delivery amqp.Delivery) {
 	category, updateType, err := hs.parseRoutingKey(delivery.RoutingKey)
 	if err != nil {
-		logcabin.Error.Printf("unable to handle message: %s", err.Error())
+		log.Errorf("unable to handle message: %s", err.Error())
 		hs.nack(delivery, false)
 		return
 	}
@@ -113,7 +116,7 @@ func (hs *HandlerSet) handleMessage(delivery amqp.Delivery) {
 	// Look up the handler for the category.
 	handler := hs.handlerFor[category]
 	if handler == nil {
-		logcabin.Info.Printf("no handler for category '%s'; ignoring delivery", category)
+		log.Infof("no handler for category '%s'; ignoring delivery", category)
 		hs.ack(delivery)
 		return
 	}
@@ -123,16 +126,16 @@ func (hs *HandlerSet) handleMessage(delivery amqp.Delivery) {
 	if err != nil {
 		switch val := err.(type) {
 		case handlers.UnrecoverableError:
-			logcabin.Error.Printf("discarding message because of an unrecoverable error: %s", val.Error())
+			log.Errorf("discarding message because of an unrecoverable error: %s", val.Error())
 			hs.sendUnrecoverableErrorEmail(delivery, val)
 			hs.logDelivery("discarded delivery", delivery)
 			hs.nack(delivery, false)
 		case handlers.RecoverableError:
-			logcabin.Error.Printf("requeuing message becuse of a recoverable error: %s", val.Error())
+			log.Errorf("requeuing message becuse of a recoverable error: %s", val.Error())
 			hs.logDelivery("requeued delivery", delivery)
 			hs.nack(delivery, true)
 		case error:
-			logcabin.Error.Printf(
+			log.Errorf(
 				"requeuing message because of an error that is presumed to be recoverable: %s",
 				val.Error(),
 			)
