@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/squirrel v1.4.0
 	github.com/cyverse-de/configurate v0.0.0-20200527185205-4e1e92866cee
 	github.com/cyverse-de/dbutil v1.0.1
-	github.com/cyverse-de/messaging/v9 v9.1.3
+	github.com/cyverse-de/messaging/v9 v9.1.4
 	github.com/lib/pq v1.10.4
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mcnijman/go-emailaddress v1.1.0
