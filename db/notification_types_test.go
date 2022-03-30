@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -11,6 +12,7 @@ func TestGetNotificationTypeID(t *testing.T) {
 	assert := assert.New(t)
 
 	db, mock, err := sqlmock.New()
+	ctx := context.Background()
 	assert.NoError(err, "unable to open the mock database connection")
 	defer db.Close()
 
@@ -26,7 +28,7 @@ func TestGetNotificationTypeID(t *testing.T) {
 	// Look up a notification type.
 	tx, err := db.Begin()
 	assert.NoError(err, "unable to begin a transaction")
-	id, err := GetNotificationTypeID(tx, "test")
+	id, err := GetNotificationTypeID(ctx, tx, "test")
 	assert.NoError(err, "unexpected error occurred while looking up the notification type ID")
 	assert.Equal(testID, id)
 	tx.Rollback()
@@ -40,6 +42,7 @@ func TestRegisterNotificationType(t *testing.T) {
 	assert := assert.New(t)
 
 	db, mock, err := sqlmock.New()
+	ctx := context.Background()
 	assert.NoError(err, "unable to open the mock database connection")
 	defer db.Close()
 
@@ -54,7 +57,7 @@ func TestRegisterNotificationType(t *testing.T) {
 	// Register the notification type.
 	tx, err := db.Begin()
 	assert.NoError(err, "unable to begin a transaction")
-	err = RegisterNotificationType(tx, testType)
+	err = RegisterNotificationType(ctx, tx, testType)
 	assert.NoError(err, "unexpected error occurred while registering the notification type")
 	tx.Rollback()
 

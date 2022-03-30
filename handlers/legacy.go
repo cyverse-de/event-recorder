@@ -1,15 +1,16 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/cyverse-de/event-recorder/common"
+	"github.com/cyverse-de/messaging/v9"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
-	"gopkg.in/cyverse-de/messaging.v8"
 )
 
 // LegacyRequest represents a deserialized request for a backwards compatible notification.
@@ -39,7 +40,7 @@ func NewLegacy(dbc DatabaseClient, messagingClient MessagingClient) *Legacy {
 }
 
 // sendEmailRequest sends the email request for a single notification request.
-func (lh *Legacy) sendEmailRequest(request *LegacyRequest) error {
+func (lh *Legacy) sendEmailRequest(ctx context.Context, request *LegacyRequest) error {
 	wrapMsg := "unable to send the email request"
 
 	// Extract the email address from the notification request payload.
@@ -69,7 +70,7 @@ func (lh *Legacy) sendEmailRequest(request *LegacyRequest) error {
 		TemplateName:   request.EmailTemplate,
 		TemplateValues: request.Payload,
 	}
-	err = lh.messagingClient.PublishEmailRequest(emailRequest)
+	err = lh.messagingClient.PublishEmailRequestContext(ctx, emailRequest)
 	if err != nil {
 		return NewRecoverableError("%s: %s", wrapMsg, err.Error())
 	}
@@ -165,7 +166,7 @@ func (lh *Legacy) buildNotificationMessage(
 }
 
 // HandleMessage handles a single AMQP delivery.
-func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error {
+func (lh *Legacy) HandleMessage(ctx context.Context, updateType string, delivery amqp.Delivery) error {
 	updateType = strings.ToLower(updateType)
 
 	// Parse the message body.
@@ -189,7 +190,7 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 	defer lh.dbc.Rollback(tx)
 
 	// Register the notification type in case it doesn't exist in the database yet.
-	err = lh.dbc.RegisterNotificationType(tx, updateType)
+	err = lh.dbc.RegisterNotificationType(ctx, tx, updateType)
 	if err != nil {
 		return NewUnrecoverableError("unable to register the notification type: %s", err.Error())
 	}
@@ -205,14 +206,14 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 		Message:          string(delivery.Body),
 		RoutingKey:       delivery.RoutingKey,
 	}
-	err = lh.dbc.SaveNotification(tx, storableRequest)
+	err = lh.dbc.SaveNotification(ctx, tx, storableRequest)
 	if err != nil {
 		return NewUnrecoverableError(err.Error())
 	}
 
 	// Send the email request.
 	if request.Email {
-		err = lh.sendEmailRequest(&request)
+		err = lh.sendEmailRequest(ctx, &request)
 		if err != nil {
 			return err
 		}
@@ -225,13 +226,13 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 	}
 
 	// Save the outgoing notificaiton in the database.
-	err = lh.dbc.SaveOutgoingNotification(tx, notificationMessage)
+	err = lh.dbc.SaveOutgoingNotification(ctx, tx, notificationMessage)
 	if err != nil {
 		return err
 	}
 
 	// Count the number of unread notifications.
-	unreadNotificationCount, err := lh.dbc.CountUnreadNotifications(tx, request.User)
+	unreadNotificationCount, err := lh.dbc.CountUnreadNotifications(ctx, tx, request.User)
 	if err != nil {
 		return err
 	}
@@ -243,7 +244,7 @@ func (lh *Legacy) HandleMessage(updateType string, delivery amqp.Delivery) error
 	}
 
 	// Publish the outgoing notification message.
-	err = lh.messagingClient.PublishNotificationMessage(wrappedNotificationMessage)
+	err = lh.messagingClient.PublishNotificationMessageContext(ctx, wrappedNotificationMessage)
 	if err != nil {
 		return err
 	}

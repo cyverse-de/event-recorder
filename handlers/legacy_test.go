@@ -1,15 +1,16 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"regexp"
 	"testing"
 
 	"github.com/cyverse-de/event-recorder/common"
+	"github.com/cyverse-de/messaging/v9"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/cyverse-de/messaging.v8"
 )
 
 // MockMessagingClient provides mock implementations of the functions we need from messaging.Client.
@@ -19,13 +20,13 @@ type MockMessagingClient struct {
 }
 
 // PublishNotificationMessage simply stores a copy of the notification message for later inspection.
-func (c *MockMessagingClient) PublishNotificationMessage(msg *messaging.WrappedNotificationMessage) error {
+func (c *MockMessagingClient) PublishNotificationMessageContext(_ context.Context, msg *messaging.WrappedNotificationMessage) error {
 	c.PublishedNotificationMessage = msg
 	return nil
 }
 
 // PublishEmailRequest simply stores a copy of the email request for later inspection.
-func (c *MockMessagingClient) PublishEmailRequest(req *messaging.EmailRequest) error {
+func (c *MockMessagingClient) PublishEmailRequestContext(_ context.Context, req *messaging.EmailRequest) error {
 	c.PublishedEmailRequest = req
 	return nil
 }
@@ -76,13 +77,13 @@ func (c *MockDatabaseClient) Rollback(*sql.Tx) error {
 }
 
 // RegisterNotificationType records a notification type that has been registered.
-func (c *MockDatabaseClient) RegisterNotificationType(tx *sql.Tx, notificationType string) error {
+func (c *MockDatabaseClient) RegisterNotificationType(_ context.Context, tx *sql.Tx, notificationType string) error {
 	c.RegisteredNotificationType = notificationType
 	return nil
 }
 
 // SaveNotification records a copy of the notification that was saved.
-func (c *MockDatabaseClient) SaveNotification(tx *sql.Tx, notification *common.Notification) error {
+func (c *MockDatabaseClient) SaveNotification(_ context.Context, tx *sql.Tx, notification *common.Notification) error {
 	notification.ID = FakeNotificationID
 	c.SavedNotification = notification
 	return nil
@@ -90,6 +91,7 @@ func (c *MockDatabaseClient) SaveNotification(tx *sql.Tx, notification *common.N
 
 // SaveOutgoingNotification records a copy of the notification message that was saved.
 func (c *MockDatabaseClient) SaveOutgoingNotification(
+	_ context.Context,
 	tx *sql.Tx,
 	outgoingNotification *messaging.NotificationMessage,
 ) error {
@@ -99,7 +101,7 @@ func (c *MockDatabaseClient) SaveOutgoingNotification(
 
 // CountUnreadNotifications counts the number of notifications for the user that have not been marked as read
 // or deleted.
-func (c *MockDatabaseClient) CountUnreadNotifications(tx *sql.Tx, user string) (int64, error) {
+func (c *MockDatabaseClient) CountUnreadNotifications(_ context.Context, tx *sql.Tx, user string) (int64, error) {
 	return c.unreadMessageCount, nil
 }
 
@@ -154,6 +156,7 @@ func timestampFormatCorrect(timestamp string) bool {
 func TestNotification(t *testing.T) {
 	assert := assert.New(t)
 
+	ctx := context.Background()
 	// Create the AMQP delivery for testing.
 	requestBody, err := json.Marshal(getLegacyNotificationRequest())
 	if err != nil {
@@ -167,7 +170,7 @@ func TestNotification(t *testing.T) {
 	handler := NewLegacy(databaseClient, messagingClient)
 
 	// Pass the delivery to the handler.
-	err = handler.HandleMessage("analysis", delivery)
+	err = handler.HandleMessage(ctx, "analysis", delivery)
 	if err != nil {
 		t.Fatalf("unxpected error returned by legacy handler: %s", err.Error())
 	}
@@ -238,6 +241,7 @@ func TestNotification(t *testing.T) {
 func TestNotificationWithoutEmail(t *testing.T) {
 	assert := assert.New(t)
 
+	ctx := context.Background()
 	// Disable emails for this notification.
 	req := getLegacyNotificationRequest()
 	req["email"] = false
@@ -255,7 +259,7 @@ func TestNotificationWithoutEmail(t *testing.T) {
 	handler := NewLegacy(databaseClient, messagingClient)
 
 	// Pass the delivery to the handler.
-	err = handler.HandleMessage("analysis", delivery)
+	err = handler.HandleMessage(ctx, "analysis", delivery)
 	if err != nil {
 		t.Fatalf("unxpected error returned by legacy handler: %s", err.Error())
 	}
@@ -289,6 +293,7 @@ func TestNotificationWithoutEmail(t *testing.T) {
 func TestNotificationWithoutMessage(t *testing.T) {
 	assert := assert.New(t)
 
+	ctx := context.Background()
 	// This notification should have no message.
 	req := getLegacyNotificationRequest()
 	req["message"] = ""
@@ -306,7 +311,7 @@ func TestNotificationWithoutMessage(t *testing.T) {
 	handler := NewLegacy(databaseClient, messagingClient)
 
 	// Pass the delivery to the handler.
-	err = handler.HandleMessage("analysis", delivery)
+	err = handler.HandleMessage(ctx, "analysis", delivery)
 	if err != nil {
 		t.Fatalf("unexpected error returned by legacy handler: %s", err.Error())
 	}
@@ -335,6 +340,7 @@ func TestNotificationWithoutMessage(t *testing.T) {
 func TestNotificationWithUpperCaseUpdateType(t *testing.T) {
 	assert := assert.New(t)
 
+	ctx := context.Background()
 	// Create the AMQP delivery for testing.
 	requestBody, err := json.Marshal(getLegacyNotificationRequest())
 	if err != nil {
@@ -348,7 +354,7 @@ func TestNotificationWithUpperCaseUpdateType(t *testing.T) {
 	handler := NewLegacy(databaseClient, messagingClient)
 
 	// Pass the delivery to the handler.
-	err = handler.HandleMessage("ANALYSIS", delivery)
+	err = handler.HandleMessage(ctx, "ANALYSIS", delivery)
 	if err != nil {
 		t.Fatalf("unxpected error returned by legacy handler: %s", err.Error())
 	}

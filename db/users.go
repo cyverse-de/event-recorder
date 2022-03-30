@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -10,7 +11,7 @@ import (
 
 // AddUser adds a user to the `users` table in the notifications database, returning
 // the ID assigned to the user.
-func AddUser(tx *sql.Tx, user string) (string, error) {
+func AddUser(ctx context.Context, tx *sql.Tx, user string) (string, error) {
 	wrapMsg := fmt.Sprintf("unable to add `%s` to the users table", user)
 
 	// Build the query.
@@ -26,7 +27,7 @@ func AddUser(tx *sql.Tx, user string) (string, error) {
 
 	// Execute the statement.
 	var id string
-	row := tx.QueryRow(statement, args...)
+	row := tx.QueryRowContext(ctx, statement, args...)
 	err = row.Scan(&id)
 	if err != nil {
 		return "", errors.Wrap(err, wrapMsg)
@@ -37,7 +38,7 @@ func AddUser(tx *sql.Tx, user string) (string, error) {
 
 // GetUserID obtains the user ID for `user`, adding the user to the `users` table in
 // the notifications database if necessary.
-func GetUserID(tx *sql.Tx, user string) (string, error) {
+func GetUserID(ctx context.Context, tx *sql.Tx, user string) (string, error) {
 	wrapMsg := fmt.Sprintf("unable to get the user ID for `%s`", user)
 
 	// Build the query.
@@ -52,7 +53,7 @@ func GetUserID(tx *sql.Tx, user string) (string, error) {
 
 	// Query the databse.
 	var id string
-	row := tx.QueryRow(statement, args...)
+	row := tx.QueryRowContext(ctx, statement, args...)
 	err = row.Scan(&id)
 
 	// If The error is nil then we've got the ID already.
@@ -62,7 +63,7 @@ func GetUserID(tx *sql.Tx, user string) (string, error) {
 
 	// If the error is ErrNoRows then we need to add the user to the database.
 	if err == sql.ErrNoRows {
-		return AddUser(tx, user)
+		return AddUser(ctx, tx, user)
 	}
 
 	// If we get here then all we can do is return the error.

@@ -1,27 +1,28 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/cyverse-de/event-recorder/db"
 
 	"github.com/cyverse-de/event-recorder/common"
+	"github.com/cyverse-de/messaging/v9"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
-	"gopkg.in/cyverse-de/messaging.v8"
 )
 
 // MessageHandler describes the interface used to handle AMQP messages.
 type MessageHandler interface {
-	HandleMessage(updateType string, delivery amqp.Delivery) error
+	HandleMessage(ctx context.Context, updateType string, delivery amqp.Delivery) error
 }
 
 // MessagingClient is a subset of messaging.Client. Its purpose is to limit the number of mock
 // functions we have to implement for unit testing. During unit tests, a mock messaging client
 // will be used. Otherwise, messaging.Client will be used directly.
 type MessagingClient interface {
-	PublishEmailRequest(*messaging.EmailRequest) error
-	PublishNotificationMessage(*messaging.WrappedNotificationMessage) error
+	PublishEmailRequestContext(context.Context, *messaging.EmailRequest) error
+	PublishNotificationMessageContext(context.Context, *messaging.WrappedNotificationMessage) error
 }
 
 // DatabaseClient provides a wrapper around functions that handlers might call in order to interact
@@ -30,10 +31,10 @@ type DatabaseClient interface {
 	Begin() (*sql.Tx, error)
 	Commit(*sql.Tx) error
 	Rollback(*sql.Tx) error
-	RegisterNotificationType(*sql.Tx, string) error
-	SaveNotification(*sql.Tx, *common.Notification) error
-	SaveOutgoingNotification(*sql.Tx, *messaging.NotificationMessage) error
-	CountUnreadNotifications(*sql.Tx, string) (int64, error)
+	RegisterNotificationType(context.Context, *sql.Tx, string) error
+	SaveNotification(context.Context, *sql.Tx, *common.Notification) error
+	SaveOutgoingNotification(context.Context, *sql.Tx, *messaging.NotificationMessage) error
+	CountUnreadNotifications(context.Context, *sql.Tx, string) (int64, error)
 }
 
 // DatabaseClientImpl provides the default implementation of DatabaseClient.
@@ -58,26 +59,27 @@ func (c *DatabaseClientImpl) Rollback(tx *sql.Tx) error {
 
 // RegisterNotificationType registers a new notification type in the database, and is a no-op if the
 // notification type already exists.
-func (c *DatabaseClientImpl) RegisterNotificationType(tx *sql.Tx, notificationType string) error {
-	return db.RegisterNotificationType(tx, notificationType)
+func (c *DatabaseClientImpl) RegisterNotificationType(ctx context.Context, tx *sql.Tx, notificationType string) error {
+	return db.RegisterNotificationType(ctx, tx, notificationType)
 }
 
 // SaveNotification saves a notification in the database.
-func (c *DatabaseClientImpl) SaveNotification(tx *sql.Tx, notification *common.Notification) error {
-	return db.SaveNotification(tx, notification)
+func (c *DatabaseClientImpl) SaveNotification(ctx context.Context, tx *sql.Tx, notification *common.Notification) error {
+	return db.SaveNotification(ctx, tx, notification)
 }
 
 // SaveOutgoingNotification adds the outbound notification JSON to the notification record in the database.
 func (c *DatabaseClientImpl) SaveOutgoingNotification(
+	ctx context.Context,
 	tx *sql.Tx,
 	outgoingNotification *messaging.NotificationMessage,
 ) error {
-	return db.SaveOutgoingNotification(tx, outgoingNotification)
+	return db.SaveOutgoingNotification(ctx, tx, outgoingNotification)
 }
 
 // CountUnreadNotifications counts the number of notifications for the user that haven't been marked as read.
-func (c *DatabaseClientImpl) CountUnreadNotifications(tx *sql.Tx, user string) (int64, error) {
-	return db.CountUnreadNotifications(tx, user)
+func (c *DatabaseClientImpl) CountUnreadNotifications(ctx context.Context, tx *sql.Tx, user string) (int64, error) {
+	return db.CountUnreadNotifications(ctx, tx, user)
 }
 
 // NewDatabaseClient creates a new default database client implementation.

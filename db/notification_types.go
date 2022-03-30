@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -11,7 +12,7 @@ import (
 
 // GetNotificationTypeID obtains the ID of the notification type with the given name. An error
 // is returned if the database can't be queried or the notification type doesn't exist.
-func GetNotificationTypeID(tx *sql.Tx, notificationType string) (string, error) {
+func GetNotificationTypeID(ctx context.Context, tx *sql.Tx, notificationType string) (string, error) {
 	wrapMsg := fmt.Sprintf("unable to get the notification type ID for `%s`", notificationType)
 
 	// Build the SQL query and arguments.
@@ -27,7 +28,7 @@ func GetNotificationTypeID(tx *sql.Tx, notificationType string) (string, error) 
 
 	// Query the database.
 	var id string
-	row := tx.QueryRow(query, args...)
+	row := tx.QueryRowContext(ctx, query, args...)
 	err = row.Scan(&id)
 	if err != nil {
 		return "", errors.Wrap(err, wrapMsg)
@@ -37,7 +38,7 @@ func GetNotificationTypeID(tx *sql.Tx, notificationType string) (string, error) 
 }
 
 // RegisterNotificationType registers a new notification type.
-func RegisterNotificationType(tx *sql.Tx, notificationType string) error {
+func RegisterNotificationType(ctx context.Context, tx *sql.Tx, notificationType string) error {
 	wrapMsg := fmt.Sprintf("unable to register the notification type, `%s`", notificationType)
 
 	// Build the SQL statement and arguments.
@@ -53,7 +54,7 @@ func RegisterNotificationType(tx *sql.Tx, notificationType string) error {
 	}
 
 	// Query the database.
-	_, err = tx.Exec(query, args...)
+	_, err = tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
 	}

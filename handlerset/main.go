@@ -1,16 +1,17 @@
 package handlerset
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/handlers"
 	"github.com/cyverse-de/event-recorder/logging"
+	"github.com/cyverse-de/messaging/v9"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"gopkg.in/cyverse-de/messaging.v8"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "handlerset"})
@@ -77,7 +78,7 @@ func (hs *HandlerSet) nack(delivery amqp.Delivery, requeue bool) {
 
 // sendUnrecoverableErrorEmail sends an email to a configurable email address indicating that
 // a message delivery couldn't be processed.
-func (hs *HandlerSet) sendUnrecoverableErrorEmail(delivery amqp.Delivery, cause handlers.UnrecoverableError) {
+func (hs *HandlerSet) sendUnrecoverableErrorEmail(ctx context.Context, delivery amqp.Delivery, cause handlers.UnrecoverableError) {
 	wrapMsg := "unable to send unrecoverable error notification email request"
 
 	// Build the email request.
@@ -93,7 +94,7 @@ func (hs *HandlerSet) sendUnrecoverableErrorEmail(delivery amqp.Delivery, cause 
 	}
 
 	// Publish the request.
-	err := hs.amqpClient.PublishEmailRequest(&request)
+	err := hs.amqpClient.PublishEmailRequestContext(ctx, &request)
 	if err != nil {
 		log.Errorf("%s: %s", wrapMsg, err.Error())
 	}
@@ -105,7 +106,7 @@ func (hs *HandlerSet) logDelivery(description string, delivery amqp.Delivery) {
 }
 
 // handleMessage handles an incoming AMQP message.
-func (hs *HandlerSet) handleMessage(delivery amqp.Delivery) {
+func (hs *HandlerSet) handleMessage(ctx context.Context, delivery amqp.Delivery) {
 	category, updateType, err := hs.parseRoutingKey(delivery.RoutingKey)
 	if err != nil {
 		log.Errorf("unable to handle message: %s", err.Error())
@@ -122,12 +123,12 @@ func (hs *HandlerSet) handleMessage(delivery amqp.Delivery) {
 	}
 
 	// Dispatch the delivery to the handler.
-	err = handler.HandleMessage(updateType, delivery)
+	err = handler.HandleMessage(ctx, updateType, delivery)
 	if err != nil {
 		switch val := err.(type) {
 		case handlers.UnrecoverableError:
 			log.Errorf("discarding message because of an unrecoverable error: %s", val.Error())
-			hs.sendUnrecoverableErrorEmail(delivery, val)
+			hs.sendUnrecoverableErrorEmail(ctx, delivery, val)
 			hs.logDelivery("discarded delivery", delivery)
 			hs.nack(delivery, false)
 		case handlers.RecoverableError:

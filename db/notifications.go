@@ -1,19 +1,20 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 
 	"github.com/cyverse-de/event-recorder/common"
+	"github.com/cyverse-de/messaging/v9"
 	"github.com/pkg/errors"
-	"gopkg.in/cyverse-de/messaging.v8"
 
 	sq "github.com/Masterminds/squirrel"
 )
 
 // CountUnreadNotifications counts the number of notifications for the user that haven't been marked as read.
-func CountUnreadNotifications(tx *sql.Tx, user string) (int64, error) {
+func CountUnreadNotifications(ctx context.Context, tx *sql.Tx, user string) (int64, error) {
 	wrapMsg := "unable to count unread notifications"
 	var total int64
 
@@ -32,7 +33,7 @@ func CountUnreadNotifications(tx *sql.Tx, user string) (int64, error) {
 	}
 
 	// Execute the statement.
-	err = tx.QueryRow(statement, args...).Scan(&total)
+	err = tx.QueryRowContext(ctx, statement, args...).Scan(&total)
 	if err != nil {
 		return 0, errors.Wrap(err, wrapMsg)
 	}
@@ -41,17 +42,17 @@ func CountUnreadNotifications(tx *sql.Tx, user string) (int64, error) {
 }
 
 // SaveNotification saves a single notification into the database.
-func SaveNotification(tx *sql.Tx, notification *common.Notification) error {
+func SaveNotification(ctx context.Context, tx *sql.Tx, notification *common.Notification) error {
 	wrapMsg := "unable to save notification"
 
 	// Get the notification type ID.
-	notificationTypeID, err := GetNotificationTypeID(tx, notification.NotificationType)
+	notificationTypeID, err := GetNotificationTypeID(ctx, tx, notification.NotificationType)
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
 	}
 
 	// Get the user ID.
-	userID, err := GetUserID(tx, notification.User)
+	userID, err := GetUserID(ctx, tx, notification.User)
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
 	}
@@ -85,7 +86,7 @@ func SaveNotification(tx *sql.Tx, notification *common.Notification) error {
 	}
 
 	// Execute the insert statement, scanning the ID into the notification structure.
-	row := tx.QueryRow(statement, args...)
+	row := tx.QueryRowContext(ctx, statement, args...)
 	err = row.Scan(&notification.ID)
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
@@ -95,7 +96,7 @@ func SaveNotification(tx *sql.Tx, notification *common.Notification) error {
 }
 
 // SaveOutgoingNotification adds the outgoing notification JSON to the notification in the database.
-func SaveOutgoingNotification(tx *sql.Tx, outgoingNotification *messaging.NotificationMessage) error {
+func SaveOutgoingNotification(ctx context.Context, tx *sql.Tx, outgoingNotification *messaging.NotificationMessage) error {
 	wrapMsg := "unable to save outgoing notification JSON"
 
 	// Marshal the outgoing notification message.
@@ -116,7 +117,7 @@ func SaveOutgoingNotification(tx *sql.Tx, outgoingNotification *messaging.Notifi
 	}
 
 	// Execute the update statement and verify that the correct number of rows was affected.
-	result, err := tx.Exec(statement, args...)
+	result, err := tx.ExecContext(ctx, statement, args...)
 	if err != nil {
 		return errors.Wrap(err, wrapMsg)
 	}
