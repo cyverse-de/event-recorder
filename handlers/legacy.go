@@ -167,11 +167,12 @@ func (lh *Legacy) buildNotificationMessage(
 
 // HandleMessage handles a single AMQP delivery.
 func (lh *Legacy) HandleMessage(ctx context.Context, updateType string, delivery amqp.Delivery) error {
+	var err error
 	updateType = strings.ToLower(updateType)
 
 	// Parse the message body.
 	var request LegacyRequest
-	err := json.Unmarshal(delivery.Body, &request)
+	err = json.Unmarshal(delivery.Body, &request)
 	if err != nil {
 		return NewUnrecoverableError("unable to parse message body: %s", err.Error())
 	}
@@ -187,7 +188,9 @@ func (lh *Legacy) HandleMessage(ctx context.Context, updateType string, delivery
 	if err != nil {
 		return NewRecoverableError("uanble to begin a database transaction: %s", err.Error())
 	}
-	defer lh.dbc.Rollback(tx)
+	defer func() {
+		err = lh.dbc.Rollback(tx)
+	}()
 
 	// Register the notification type in case it doesn't exist in the database yet.
 	err = lh.dbc.RegisterNotificationType(ctx, tx, updateType)
@@ -255,5 +258,5 @@ func (lh *Legacy) HandleMessage(ctx context.Context, updateType string, delivery
 		return NewRecoverableError("unable to commit the database transaction: %s", err.Error())
 	}
 
-	return nil
+	return err
 }

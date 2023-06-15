@@ -1,14 +1,14 @@
-FROM golang:1.17-alpine
+FROM golang:1.20-alpine
 
 RUN apk add --no-cache make
 RUN apk add --no-cache git
-RUN go get -u github.com/jstemmer/go-junit-report
 
 ENV CGO_ENABLED=0
 
 WORKDIR /src/event-recorder
 COPY . .
 RUN go test ./... && \
+    ls -l && \
     go build .
 
 FROM scratch
