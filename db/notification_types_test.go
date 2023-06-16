@@ -31,7 +31,7 @@ func TestGetNotificationTypeID(t *testing.T) {
 	id, err := GetNotificationTypeID(ctx, tx, "test")
 	assert.NoError(err, "unexpected error occurred while looking up the notification type ID")
 	assert.Equal(testID, id)
-	tx.Rollback()
+	_ = tx.Rollback()
 
 	// Verify that all mock expectations were met.
 	err = mock.ExpectationsWereMet()
@@ -59,7 +59,7 @@ func TestRegisterNotificationType(t *testing.T) {
 	assert.NoError(err, "unable to begin a transaction")
 	err = RegisterNotificationType(ctx, tx, testType)
 	assert.NoError(err, "unexpected error occurred while registering the notification type")
-	tx.Rollback()
+	_ = tx.Rollback()
 
 	// Verify that all mock expectations were met.
 	err = mock.ExpectationsWereMet()

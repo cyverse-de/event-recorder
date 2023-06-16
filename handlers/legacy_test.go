@@ -149,7 +149,7 @@ func getLegacyNotificationRequest() map[string]interface{} {
 // timestampFormatCorrect returns true if the format of the timestamp in the
 // given message appears to be corect.
 func timestampFormatCorrect(timestamp string) bool {
-	re := regexp.MustCompile("^\\d+$")
+	re := regexp.MustCompile(`^\d+$`)
 	return re.MatchString(timestamp)
 }
 
