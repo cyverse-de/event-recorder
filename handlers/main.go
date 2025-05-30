@@ -7,9 +7,9 @@ import (
 	"github.com/cyverse-de/event-recorder/db"
 
 	"github.com/cyverse-de/event-recorder/common"
-	"github.com/cyverse-de/messaging/v9"
+	"github.com/cyverse-de/messaging/v11"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // MessageHandler describes the interface used to handle AMQP messages.
