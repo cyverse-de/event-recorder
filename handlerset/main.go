@@ -8,10 +8,10 @@ import (
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/handlers"
 	"github.com/cyverse-de/event-recorder/logging"
-	"github.com/cyverse-de/messaging/v9"
+	"github.com/cyverse-de/messaging/v11"
 	"github.com/pkg/errors"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "handlerset"})

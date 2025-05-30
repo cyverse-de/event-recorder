@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/cyverse-de/event-recorder/common"
-	"github.com/cyverse-de/messaging/v9"
+	"github.com/cyverse-de/messaging/v11"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // LegacyRequest represents a deserialized request for a backwards compatible notification.
@@ -211,7 +211,7 @@ func (lh *Legacy) HandleMessage(ctx context.Context, updateType string, delivery
 	}
 	err = lh.dbc.SaveNotification(ctx, tx, storableRequest)
 	if err != nil {
-		return NewUnrecoverableError(err.Error())
+		return NewUnrecoverableError("unable to save the notification: %s", err.Error())
 	}
 
 	// Send the email request.

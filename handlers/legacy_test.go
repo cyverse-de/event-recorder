@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/cyverse-de/event-recorder/common"
-	"github.com/cyverse-de/messaging/v9"
-	"github.com/streadway/amqp"
+	"github.com/cyverse-de/messaging/v11"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 )
 
