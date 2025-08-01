@@ -1,7 +1,4 @@
-FROM golang:1.24-alpine
-
-RUN apk add --no-cache make
-RUN apk add --no-cache git
+FROM golang:1.24
 
 ENV CGO_ENABLED=0
 
@@ -11,7 +8,7 @@ RUN go test ./... && \
     ls -l && \
     go build .
 
-FROM scratch
+FROM debian:stable-slim
 
 WORKDIR /app
 
