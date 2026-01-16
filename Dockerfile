@@ -1,14 +1,13 @@
-FROM golang:1.24
+FROM golang:1.25
 
 ENV CGO_ENABLED=0
 
 WORKDIR /src/event-recorder
 COPY . .
 RUN go test ./... && \
-    ls -l && \
     go build .
 
-FROM debian:stable-slim
+FROM gcr.io/distroless/static-debian13
 
 WORKDIR /app
 

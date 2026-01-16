@@ -86,7 +86,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Get the email address to use for support requests.
 	supportEmail := cfg.GetString("email.request")

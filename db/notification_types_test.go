@@ -14,7 +14,7 @@ func TestGetNotificationTypeID(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	ctx := context.Background()
 	assert.NoError(err, "unable to open the mock database connection")
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Set up the expectations.
 	mock.ExpectBegin()
@@ -44,7 +44,7 @@ func TestRegisterNotificationType(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	ctx := context.Background()
 	assert.NoError(err, "unable to open the mock database connection")
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Set up the expectations.
 	mock.ExpectBegin()
