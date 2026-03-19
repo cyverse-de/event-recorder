@@ -4,8 +4,10 @@ ENV CGO_ENABLED=0
 
 WORKDIR /src/event-recorder
 COPY . .
-RUN go test ./... && \
-    go build .
+RUN apt-get update && \
+    apt install just && \
+    just test && \
+    just build
 
 FROM gcr.io/distroless/static-debian13
 
