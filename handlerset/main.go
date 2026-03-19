@@ -36,7 +36,7 @@ func New(
 	wrapMsg := "unable to create the message handler set"
 
 	// Create the AMQP client.
-	amqpClient, err := messaging.NewClient(amqpSettings.URI, false)
+	amqpClient, err := messaging.NewClient(amqpSettings.URI, true)
 	if err != nil {
 		return nil, errors.Wrap(err, wrapMsg)
 	}
