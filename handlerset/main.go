@@ -8,7 +8,7 @@ import (
 	"github.com/cyverse-de/event-recorder/common"
 	"github.com/cyverse-de/event-recorder/handlers"
 	"github.com/cyverse-de/event-recorder/logging"
-	"github.com/cyverse-de/messaging/v11"
+	"github.com/cyverse-de/messaging/v12"
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
@@ -36,7 +36,7 @@ func New(
 	wrapMsg := "unable to create the message handler set"
 
 	// Create the AMQP client.
-	amqpClient, err := messaging.NewClient(amqpSettings.URI, false)
+	amqpClient, err := messaging.NewClient(amqpSettings.URI, true)
 	if err != nil {
 		return nil, errors.Wrap(err, wrapMsg)
 	}
