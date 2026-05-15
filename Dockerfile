@@ -1,4 +1,4 @@
-FROM golang:1.25
+FROM golang:1.26
 
 ENV CGO_ENABLED=0
 
@@ -9,7 +9,7 @@ RUN apt-get update && \
     just test && \
     just build
 
-FROM gcr.io/distroless/static-debian13
+FROM gcr.io/distroless/static-debian13:nonroot
 
 WORKDIR /app
 
