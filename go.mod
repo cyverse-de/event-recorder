@@ -13,7 +13,7 @@ require (
 	github.com/lib/pq v1.12.3
 	github.com/mcnijman/go-emailaddress v1.1.1
 	github.com/pkg/errors v0.9.1
-	github.com/rabbitmq/amqp091-go v1.11.0
+	github.com/rabbitmq/amqp091-go v1.13.0
 	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
 )
